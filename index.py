@@ -29,7 +29,7 @@ class header_fetch:
                 self.fields.append(i)
 
         elif (file in self.files) and ('Coordinates' not in file):
-            full = pd.read_excel(os.path.join(firstp,file))
+            full = pd.read_excel(os.path.join(self.dir,file))
             is_concern = full['Table name']==f'{col}'
             temphead = full[is_concern]
             for i in temphead['Field name']:
