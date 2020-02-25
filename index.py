@@ -67,3 +67,23 @@ for file in os.listdir(firstp):
         for item in os.listdir(os.path.join(firstp, file)):
             if os.path.splitext(item)[0].upper() in tablelist:
                 dfs.update({f'{os.path.splitext(item)[0]}':pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])})
+##### for rangechange2009+
+##### fieldnames + esfsg, pastureheights, plantcensus, soilhorizon
+fdict2009 = {}
+dfs2009 = {}
+tablelist2 = tablelist
+newbies = ['ESFSG','PASTUREHEIGHTS', 'PLANTCENSUS', 'SOILHORIZON']
+for i in newbies:
+    tablelist2.append(i)
+#### getting fieldnames
+for file in os.listdir(firstp):
+    if (file.find('2009')!=-1) and(file.find('Dump Columns')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
+        for table in tablelist2:
+            hfetch.pull(file, table)
+            fdict2009.update({f'{table}':hfetch.fields})
+#### getting full 'frames
+for file in os.listdir(firstp):
+    if (file.find('RangeChange2009')!=-1) and (file.endswith('.xlsx')==False):
+        for item in os.listdir(os.path.join(firstp, file)):
+            if os.path.splitext(item)[0].upper() in tablelist2:
+                dfs2009.update({f'{os.path.splitext(item)[0]}':pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False,low_memory=False, names=fdict2009[os.path.splitext(item)[0].upper()])})
