@@ -3,19 +3,17 @@ import os.path
 import pandas as pd
 from index import header_fetch
 
-
-########### 2009-2016 or 2011-2016??
 ## what about indicators
 ## getting in the first file dir
 path=os.environ['NRIDAT']
 dirs = os.listdir(path)
-secondp = os.path.join(path,dirs[1])
+thirdp = os.path.join(path,dirs[2])
 
 ##### setting it up
 fdict = {}
 dfs = {}
 
-realpath = os.path.join(secondp,'Raw data dump')
+realpath = os.path.join(thirdp,'Raw data dump')
 hfetch = header_fetch(realpath)
 
 ## fieldnames
@@ -42,7 +40,7 @@ for file in os.listdir(realpath):
                 # store
                 dfs.update({'coordinates':tempdf})
 
-    if (file.find('range2011')!=-1) and (file.endswith('.xlsx')==False) and ('PointCoordinates' not in file) and (file.endswith('.zip')==False):
+    if (file.find('pasture2013')!=-1) and (file.endswith('.xlsx')==False) and ('PointCoordinates' not in file) and (file.endswith('.zip')==False):
         for item in os.listdir(os.path.join(realpath, file)):
             if os.path.splitext(item)[0].upper() in tablelist:
                 dfs.update({f'{os.path.splitext(item)[0]}':pd.read_csv(os.path.join(realpath,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])})

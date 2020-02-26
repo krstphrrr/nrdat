@@ -34,6 +34,14 @@ class header_fetch:
             temphead = full[is_concern]
             for i in temphead['Field name']:
                 self.fields.append(i)
+
+        elif (file.endswith('.csv')) and ('Coordinates' not in file):
+            full = pd.read_csv(os.path.join(self.dir,file))
+            is_target = full['TABLE.NAME']==f'{col}'
+            temphead = full[is_target]
+            for i in temphead['FIELD.NAME']:
+                self.fields.append(i)
+
         else:
             print('file is not in supplied directory')
 

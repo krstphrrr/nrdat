@@ -3,29 +3,44 @@ import os.path
 import pandas as pd
 from index import header_fetch
 
-
-########### 2009-2016 or 2011-2016??
 ## what about indicators
 ## getting in the first file dir
 path=os.environ['NRIDAT']
 dirs = os.listdir(path)
-secondp = os.path.join(path,dirs[1])
+fourthp = os.path.join(path,dirs[4])
 
 ##### setting it up
 fdict = {}
 dfs = {}
 
-realpath = os.path.join(secondp,'Raw data dump')
+realpath = os.path.join(fourthp,'Raw data dump')
 hfetch = header_fetch(realpath)
 
 ## fieldnames
-tablelist =['CONCERN','COUNTYNM','DISTURBANCE','ESFSG','GINTERCEPT', 'GPS','PASTUREHEIGHTS','PINTERCEPT','PLANTCENSUS','POINT','PRACTICE','PRODUCTION','PTNOTE','RANGEHEALTH', 'SOILDISAG','SOILHORIZON','STATENM']
+# tablelist =['CONCERN','COUNTYNM','DISTURBANCE','ESFSG','GINTERCEPT', 'GPS','PASTUREHEIGHTS','PINTERCEPT','PLANTCENSUS','POINT','PRACTICE','PRODUCTION','PTNOTE','RANGEHEALTH', 'SOILDISAG','SOILHORIZON','STATENM']
+# pulling tables+ fieldnames from explanations
+
+df = pd.read_csv(os.path.join(realpath,os.listdir(realpath)[0]), index_col=0)
+is_2018 = df['DBKey']=='rangepasture2017_2018'
+df[is_2018].to_csv(os.path.join(realpath,'2018Dump Columns.csv'))
+df2 = df[is_2018]
+
+st = set()
+for i in df2['TABLE.NAME']:
+    if i not in st:
+        st.add(i)
+tablelist = []
+for i in st:
+    tablelist.append(i)
+
+
 for file in os.listdir(realpath):
     if (file.find('Point Coordinates')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
         hfetch.pull(file)
         fdict.update({'coordinates':hfetch.fields})
 
-    if (file.find('2009')!=-1) and(file.find('Dump Columns')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
+    if (file.find('2018')!=-1) and(file.find('Dump Columns')!=-1) and (file.startswith('~$')==False) and (file.endswith('.csv')==True):
+
         for table in tablelist:
             hfetch.pull(file, table)
             fdict.update({f'{table}':hfetch.fields})
@@ -42,7 +57,7 @@ for file in os.listdir(realpath):
                 # store
                 dfs.update({'coordinates':tempdf})
 
-    if (file.find('range2011')!=-1) and (file.endswith('.xlsx')==False) and ('PointCoordinates' not in file) and (file.endswith('.zip')==False):
+    if (file.find('rangepasture2017')!=-1) and (file.endswith('.xlsx')==False) and ('PointCoordinates' not in file) and (file.endswith('.zip')==False):
         for item in os.listdir(os.path.join(realpath, file)):
             if os.path.splitext(item)[0].upper() in tablelist:
                 dfs.update({f'{os.path.splitext(item)[0]}':pd.read_csv(os.path.join(realpath,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])})
