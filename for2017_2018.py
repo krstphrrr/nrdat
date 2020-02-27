@@ -12,6 +12,7 @@ fourthp = os.path.join(path,dirs[4])
 ##### setting it up
 fdict = {}
 dfs = {}
+bsnm = os.path.basename(fourthp).replace(' ','')
 
 realpath = os.path.join(fourthp,'Raw data dump')
 hfetch = header_fetch(realpath)
@@ -53,11 +54,14 @@ for file in os.listdir(realpath):
                 tempdf =pd.read_csv(os.path.join(realpath,file,item), sep='|', index_col=False, names=fdict['coordinates'] )
                 # fixing coordinates for example
                 tempdf['TARGET_LONGITUDE'] = tempdf['TARGET_LONGITUDE'].map(lambda i: i*(-1))
-                tempdf['FIELD_LONGITUDE'] = tempdf['FIELD_LONGITUDE'].map(lambda i: i*(-1))
+                tempdf['FIELD_LONGITUDE'] = tempdf['FIELD_LONGITUDE'].apply(lambda i: '-'+i if '          ' not in i else i)
+                tempdf['data_source'] = bsnm
                 # store
                 dfs.update({'coordinates':tempdf})
 
     if (file.find('rangepasture2017')!=-1) and (file.endswith('.xlsx')==False) and ('PointCoordinates' not in file) and (file.endswith('.zip')==False):
         for item in os.listdir(os.path.join(realpath, file)):
             if os.path.splitext(item)[0].upper() in tablelist:
-                dfs.update({f'{os.path.splitext(item)[0]}':pd.read_csv(os.path.join(realpath,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])})
+                tempdf = pd.read_csv(os.path.join(realpath,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])
+                tempdf['data_source'] = bsnm
+                dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
