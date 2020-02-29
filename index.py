@@ -1,4 +1,4 @@
-import os
+import os, sqlalchemy
 import os.path
 import pandas as pd
 import numpy as np
@@ -6,10 +6,87 @@ from utils import db, sql_str, config
 from sqlalchemy import create_engine
 from psycopg2 import sql
 from tqdm import tqdm
+"""
+type_lookup: tool used to go through the nri explanations file and create
+internal dictionaries with the data one wants based on the nri_dataframe, the
+table of interest, and the dbkey/daterange of data. currently configured to
+store 'list' which holds {fieldname:fieldtype} and 'length' which holds
+{fieldname:fieldsize}. designed to be used by the function 'pg_send'
+
+header_fetch: tool used to pull fieldnames. it is instantiated with a directory,
+and will pull all files, and subdirectories and store them in the class' properties.
+the pull method requires an excel file as an argument, and will successfully
+pull fieldnames either from nri coordinates excel file or nri columns dump file.
+designed to be used when creating dictionaries with the dataframes to be sent to
+pg.
+
+pg_send: using a supplied tablename, it will send a pandas dataframe to pg.
+if the table already exists, it will append the data to the already existing
+table. if the new table has extra columns, the function will create the new
+column and add it in postgres before appending the data. the tool uses type_lookup
+to bring data from the nri explanations table when creating the postgres one.
+TODO's:
+- assert types on newly created columns?
+- state should be 2 characters long and if a rowvalue has less, a zero should
+be appended in the extra space.
+- county should be 3 characters long and same. zeroes should fill values w less
+- all tables should have a PrimaryKey = first 5 fields concatenated
+- data_source should be DBKey = NRI + Date of ingestion
+
+
+drop_all: pulls all table names currently on pg, uses that list to drop them all
+
+col_check: dev tool to pull and store unique values. for instance if a text
+column has numbers but some values are whitespaces of different sizes, they
+can be investigated
+
+
+"""
 ## getting in the first file dir
 path=os.environ['NRIDAT']
 dirs = os.listdir(path)
 firstp = os.path.join(path,dirs[0])
+
+class type_lookup:
+    df = None
+    tbl = None
+    target = None
+    list = {}
+    length = {}
+
+    dbkey = {
+        1:'RangeChange2004-2008',
+        2:'RangeChange2009-2015',
+        3:'range2011-2016',
+        4:'rangepasture2017_2018'
+    }
+
+    def __init__(self,df,tablename,dbkeyindex):
+
+        mainp = os.path.dirname(os.path.dirname(firstp))
+        expl = os.listdir(os.path.dirname(os.path.dirname(firstp)))[-1]
+        exp_file = os.path.join(mainp,expl)
+
+        self.df = df
+        self.tbl = tablename
+        key = self.dbkey[dbkeyindex]
+
+        nri_explanations = pd.read_csv(exp_file)
+
+        is_target = nri_explanations['TABLE.NAME'] == f'{tablename.upper()}'
+        self.target = nri_explanations[is_target]
+        for i in self.df.columns:
+            temprow = self.target[(self.target['FIELD.NAME']==i) & (self.target['DBKey']==f'{key}')  ]
+
+            packed = temprow["DATA.TYPE"].values
+            lengths = temprow["FIELD.SIZE"].values
+            # self.length = temprow['FIELD.SIZE']
+            # print(packed)
+            for j in packed:
+                self.list.update({ i:f'{j}'})
+            for k in lengths:
+                self.length.update({i:k})
+
 ## tool for pulling fieldnames
 class header_fetch:
     all = None
@@ -49,67 +126,53 @@ class header_fetch:
         else:
             print('file is not in supplied directory')
 
-
-def chunker(seq, size):
-    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
-
-
-# pg_send('disturbance')
-# dfs['esfsg']
-# test = dfs['point'].copy(deep=True)
-# unique = set()
-# for i in test['OWN']:
-#     unique.add(i)
-# unique2 = set()
-#
-# for i in test['PLOT_SIZE_HERB']:
-#     unique2.add(i)
-#
-#
-pg_send('countynm')
-
+# pg_send('countynm')
+# test = dfs['point']
 def pg_send(tablename):
 
     cursor = db.str.cursor()
     df = dfs[f'{tablename}']
+    def chunker(seq, size):
+        return (seq[pos:pos + size] for pos in range(0, len(seq), size))
 
     try:
         engine = create_engine(sql_str(config()))
         chunksize = int(len(df) / 10)
         tqdm.write(f'sending {tablename} to pg...')
-
+        only_once = set()
+        onthefly = {}
         with tqdm(total=len(df)) as pbar:
 
             for i, cdf in enumerate(chunker(df,chunksize)):
                 replace = "replace" if i == 0 else "append"
                 t = type_lookup(cdf,tablename,2)
                 temptypes = t.list
-                # print(temptypes)
-                tablemap = {
-                    'numeric': sqlalchemy.types.Float(precision=3, asdecimal=True),
-                    'character': sqlalchemy.types.VARCHAR(length=self.length)
-                }
+                templengths = t.length
 
-                #
-                onthefly = {}
-                for j,k in temptypes
+                def alchemy_ret(type,len=None):
+                    if (type=='numeric') and (len==None):
+                        return sqlalchemy.types.Float(precision=3, asdecimal=True)
+                    elif (type=='character') and (len!=None):
+                        return sqlalchemy.types.VARCHAR(length=len)
+                for key in temptypes:
+                    if key not in only_once:
+                        only_once.add(key)
 
+                        if temptypes[key]=='numeric':
+                            print('found numeric')
+                            onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
+                        if temptypes[key]=='character':
+                            print('found character')
+                            onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
 
+                cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
+                pbar.update(chunksize)
+                tqdm._instances.clear()
 
-
-
-                #
-                # cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtypes=onthefly)
-                # pbar.update(chunksize)
-                # tqdm._instances.clear()
-
-            # print(f'{tablename} up in pg')
         tqdm.write(f'{tablename} up in pg')
-        # df.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', chunksize=1000,method=None)
-        # print(f'{tablename} up in pg')
+
     except Exception as e:
         print('mismatch between the columns in database table and supplied table')
-
 
         df = dfs[f'{tablename}']
         if tablename == 'point':
@@ -150,23 +213,40 @@ def pg_send(tablename):
 
             for i, cdf in enumerate(chunker(df,chunksize)):
                 replace = "replace" if i == 0 else "append"
-                cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append')
+
+                t = type_lookup(cdf,tablename,2)
+                temptypes = t.list
+                templengths = t.length
+
+                def alchemy_ret(type,len=None):
+                    if (type=='numeric') and (len==None):
+                        return sqlalchemy.types.Float(precision=3, asdecimal=True)
+                    elif (type=='character') and (len!=None):
+                        return sqlalchemy.types.VARCHAR(length=len)
+                for key in temptypes:
+                    if key not in only_once:
+                        only_once.add(key)
+                        if temptypes[key]=='numeric':
+                            print('found numeric')
+                            onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
+                        if temptypes[key]=='character':
+                            print('found character')
+                            onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
+
+                cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
                 pbar.update(chunksize)
                 tqdm._instances.clear()
 
-            # print(f'{tablename} up in pg')
         tqdm.write(f'{tablename} up in pg')
 
-# pg_send('pintercept')
 #### testing chunker
 
-# del dfs['pintercept']
 # for table in dfs.keys():
 #     pg_send(table)
 
 #
 # drop_all()
-drop_all()
+
 def drop_all():
     con = db.str
     cur = db.str.cursor()
@@ -178,8 +258,6 @@ def drop_all():
         tablelist.append(table[0])
     try:
         for tb in tablelist:
-            # tbl = f'{tb}_NRI_Test'
-            # print(tb)
             cur.execute(
             sql.SQL('DROP TABLE IF EXISTS nritest.public.{0}').format(
                      sql.Identifier(tb))
@@ -413,58 +491,12 @@ dbkey = {
 }
 
 import sqlalchemy
-class type_lookup:
-    df = None
-    tbl = None
-    target = None
-    list = {}
-    length = None
-
-    dbkey = {
-        1:'RangeChange2004-2008',
-        2:'RangeChange2009-2015',
-        3:'range2011-2016',
-        4:'rangepasture2017_2018'
-    }
-
-
-    def __init__(self,df,tablename,dbkeyindex):
-
-        mainp = os.path.dirname(os.path.dirname(firstp))
-        expl = os.listdir(os.path.dirname(os.path.dirname(firstp)))[-1]
-        exp_file = os.path.join(mainp,expl)
-
-        self.df = df
-        self.tbl = tablename
-        key = self.dbkey[dbkeyindex]
-
-        nri_explanations = pd.read_csv(exp_file)
-
-        is_target = nri_explanations['TABLE.NAME'] == f'{tablename.upper()}'
-        self.target = nri_explanations[is_target]
-        for i in self.df.columns:
-            temprow = self.target[(self.target['FIELD.NAME']==i) & (self.target['DBKey']==f'{key}')  ]
-            # tablemap = {
-            #     'numeric': sqlalchemy.types.Float(precision=3, asdecimal=True),
-            #     'character': sqlalchemy.types.VARCHAR(length=self.length)
-            # }
-            packed = temprow["DATA.TYPE"].values
-            self.length = temprow['FIELD.SIZE']
-            for j in packed:
-
-                self.list.update({ i:f'{j}'})
-            # if i in self.target['FIELD.NAME']:
-            #     print(i)
-            #     is_field = self.target['FIELD.NAME']==f'{i}'
-            #     temprow = self.target[is_field]
-            #     print(temprow)
-            # if i.Index == 0:
-            #     print(getattr(i, 'FIELD.NAME'), getattr(i, 'DATA.TYPE'),getattr(i, 'FIELD.SIZE'))
-
 
 test = dfs['statenm'].copy(deep=True)
 test
-type_lookup(test,'statenm',4)
+t = type_lookup(test,'statenm',2)
+t.length
+
 type_lookup.list
 
 
