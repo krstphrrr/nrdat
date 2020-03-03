@@ -2,10 +2,57 @@ import os, sqlalchemy
 import os.path
 import pandas as pd
 import numpy as np
-from utils import db, sql_str, config
+from utils import db, sql_str, config, Acc
 from sqlalchemy import create_engine
+import sqlalchemy_access as sa_a
 from psycopg2 import sql
 from tqdm import tqdm
+from datetime import date
+date.today().year
+
+import urllib
+import pyodbc as pyo
+
+def ret_access(whichmdb):
+    MDB = whichmdb
+    DRV = '{Microsoft Access Driver (*.mdb, *.accdb)}'
+    mdb_string = r"DRIVER={};DBQ={};".format(DRV,MDB)
+    connection_url = f"access+pyodbc:///?odbc_connect={urllib.parse.quote_plus(mdb_string)}"
+    engine = create_engine(connection_url)
+    return engine
+
+test = dfs['statenm'].copy(deep=True)
+pth = os.path.join(firstp,"RangeChange2004-2008.accdb")
+connection_string = (
+r'DRV={Microsoft Access Driver (*.mdb, *.accdb)};'
+r'DBQ=C:\\Users\\kbonefont\\Desktop\\NRI\\extracted\\2004-2015 Rangeland Change Database with Weights\\RangeChange2004-2008.accdb;'
+)
+pyocon = pyo.connect(ret_access(os.path.join(firstp,"RangeChange2004-2008.accdb")), autocommit=True)
+
+
+ret_access(os.path.join(firstp,"RangeChange2004-2008.accdb"))
+
+test.to_sql("test",con=ret_access(os.path.join(firstp,"RangeChange2004-2008.accdb")))
+
+def chunker(seq, size):
+    return (seq[pos:pos + size] for pos in range(0, len(seq), size))
+
+try:
+    chunksize = int(len(test) / 10)
+    tqdm.write(f'sending nri_test to access...')
+    with tqdm(total=len(test)) as pbar:
+        for i, cdf in enumerate(chunker(test,chunksize)):
+            replace = "replace" if i == 0 else "append"
+            cdf.to_sql(name='NRI_Test', con=ret_access(os.path.join(firstp,"target_mdb.accdb")),index=False, if_exists='append')
+            pbar.update(chunksize)
+        tqdm._instances.clear()
+
+    tqdm.write('nri_test up in access')
+except Exception as e:
+    print(e)
+
+
+
 """
 type_lookup: tool used to go through the nri explanations file and create
 internal dictionaries with the data one wants based on the nri_dataframe, the
@@ -126,8 +173,18 @@ class header_fetch:
         else:
             print('file is not in supplied directory')
 
+
+def dbkey_gen(df,newfield, *fields):
+    df[f'{newfield}'] = (df[[f'{field.strip()}' for field in fields]].astype('str')).sum(axis=1)
+# test
+#
+# test2 = tempdf.copy(deep=True)
+
+
+# dbkey_gen(test,'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+
 # pg_send('countynm')
-# test = dfs['point']
+# test = dfs['countynm']
 def pg_send(tablename):
 
     cursor = db.str.cursor()
@@ -154,20 +211,30 @@ def pg_send(tablename):
                         return sqlalchemy.types.Float(precision=3, asdecimal=True)
                     elif (type=='character') and (len!=None):
                         return sqlalchemy.types.VARCHAR(length=len)
+
                 for key in temptypes:
+                    state_key = ["STATE", "COUNTY"]
                     if key not in only_once:
                         only_once.add(key)
 
                         if temptypes[key]=='numeric':
-                            print('found numeric')
+                            # print('found numeric')
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
+                            for k in state_key:
+                                if k == "STATE":
+                                    onthefly.update({f'{k}':alchemy_ret('character',2)})
+                                if k=="COUNTY":
+                                    onthefly.update({f'{k}':alchemy_ret('character',3)})
+                            if key == "PTNOTE":
+                                onthefly.update({"PTNOTE":sa_a.LongText})
                         if temptypes[key]=='character':
-                            print('found character')
+                            # print('found character')
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
 
                 cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
+                cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(os.path.join(firstp,"target_mdb.accdb")),index=False, if_exists='append', dtype=onthefly)
                 pbar.update(chunksize)
-                tqdm._instances.clear()
+            tqdm._instances.clear()
 
         tqdm.write(f'{tablename} up in pg')
 
@@ -175,18 +242,6 @@ def pg_send(tablename):
         print('mismatch between the columns in database table and supplied table')
 
         df = dfs[f'{tablename}']
-        if tablename == 'point':
-            cursor.execute("""
-                        ALTER TABLE "%s" ALTER COLUMN "%s" TYPE %s
-                        """ % (f'{tablename}_NRI_Test','OWN','text'))
-            db.str.commit()
-
-        if tablename == 'point':
-            cursor.execute("""
-                        ALTER TABLE "%s" ALTER COLUMN "%s" TYPE %s
-                        """ % (f'{tablename}_NRI_Test','PLOT_SIZE_HERB','text'))
-            db.str.commit()
-        ## colcheck
         dbdf = pd.read_sql(f' SELECT * FROM "{tablename}_NRI_Test" LIMIT 1', db.str)
 
         if len(df.columns.tolist())>1:
@@ -224,16 +279,25 @@ def pg_send(tablename):
                     elif (type=='character') and (len!=None):
                         return sqlalchemy.types.VARCHAR(length=len)
                 for key in temptypes:
+                    state_key = ["STATE", "COUNTY"]
                     if key not in only_once:
                         only_once.add(key)
                         if temptypes[key]=='numeric':
-                            print('found numeric')
+
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
+                            for k in state_key:
+                                if k == "STATE":
+                                    onthefly.update({f'{k}':alchemy_ret('character',2)})
+                                if k=="COUNTY":
+                                    onthefly.update({f'{k}':alchemy_ret('character',3)})
+                            if key == "PTNOTE":
+                                onthefly.update({"PTNOTE":sa_a.LongText})
                         if temptypes[key]=='character':
-                            print('found character')
+
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
 
                 cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
+                cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(os.path.join(firstp,"target_mdb.accdb")),index=False, if_exists='append', dtype=onthefly)
                 pbar.update(chunksize)
                 tqdm._instances.clear()
 
@@ -245,7 +309,7 @@ def pg_send(tablename):
 #     pg_send(table)
 
 #
-# drop_all()
+
 
 def drop_all():
     con = db.str
@@ -273,11 +337,19 @@ def drop_all():
 
 
 ##### setting it up
+test = dfs['production'].copy(deep=True)
+weirdos = set()
+for i in test['DRY_WEIGHT_PERCENT'].apply(lambda i: i.strip()).apply(lambda i: np.nan if i.isdigit()!=True else i):
+    if i not in weirdos:
+        weirdos.add(i)
+
 fdict = {}
 dfs = {}
 bsnm = os.path.basename(firstp).replace(' ','')
 hfetch = header_fetch(firstp)
 tablelist =['CONCERN','COUNTYNM','DISTURBANCE','ECOSITE','GINTERCEPT', 'GPS','PINTERCEPT','POINT','PRACTICE','PRODUCTION','PTNOTE','RANGEHEALTH', 'SOILDISAG','STATENM']
+# probs = ['AW0125NESW', 'AW0375NESW', 'AW0625NESW', 'AW1125NESW', 'AW1375NESW', 'AW0125NWSE', 'AW0375NWSE', 'AW0625NWSE', 'AW1125NWSE', 'AW1375NWSE']
+# percents = ['DRY_WEIGHT_PERCENT', 'UNGRAZED_PERCENT', 'GROWTH_PERCENT', 'CLIMATE_PERCENT']
 ##### for rangechange2004 !!!!
 ##### fieldnames
 for file in os.listdir(firstp):
@@ -290,6 +362,9 @@ for file in os.listdir(firstp):
             hfetch.pull(file, table)
             fdict.update({f'{table}':hfetch.fields})
 
+# tempdf
+# str = "e"
+# str.isalpha()
 ##### joining fieldnames w data
 for file in os.listdir(firstp):
     if (file.find('Coordinates')!=-1) and (file.endswith('.xlsx')==False):
@@ -297,10 +372,31 @@ for file in os.listdir(firstp):
             if item.find('pointcoordinates')!=-1:
                 tempdf =pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False, names=fdict['coordinates'])
                 # fixing coordinates for example
+                if 'ELEVATION' in tempdf.columns:
+                    tempdf['ELEVATION'] = tempdf['ELEVATION'].apply(lambda i: np.nan if '     ' in i else i)
                 tempdf['TARGET_LONGITUDE'] = tempdf['TARGET_LONGITUDE'].map(lambda i: i*(-1))
                 tempdf['FIELD_LONGITUDE'] = tempdf['FIELD_LONGITUDE'].apply(lambda i: '-'+i if '          ' not in i else i)
-                # tempdf['FIELD_LONGITUDE'] = tempdf['FIELD_LONGITUDE'].map(lambda i: i*(-1))
-                tempdf['data_source'] = bsnm
+
+                t = type_lookup(tempdf, os.path.splitext(item)[0], 1)
+                for field in tempdf.columns:
+                    if (t.list[field]=="numeric") and (tempdf[field].dtype!=np.float64) and (tempdf[field].dtype!=np.int64):
+                        tempdf[field] = tempdf[field].apply(lambda i: i.strip())
+                        tempdf[field] = pd.to_numeric(tempdf[field])
+
+                less_fields = ['statenm','countynm']
+                if os.path.splitext(item)[0] not in less_fields:
+                    # print(item)
+                    dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+                    dbkey_gen(tempdf, 'NEW_FIELD_UNIT', 'STATE', 'COUNTY','PSU','POINT')
+                if 'COUNTY' in tempdf.columns:
+                    tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+
+                if 'STATE' in tempdf.columns:
+                    tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+                tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
+
+
+                # tempdf['data_source'] = bsnm
 
                 dfs.update({'coordinates':tempdf})
 
@@ -309,11 +405,134 @@ for file in os.listdir(firstp):
             if os.path.splitext(item)[0].upper() in tablelist:
 
                 tempdf = pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])
-                tempdf['data_source'] = bsnm
+                # tempdf['data_source'] = bsnm
+                if item.lower()=='production.txt':
+                    t = type_lookup(tempdf, os.path.splitext(item)[0], 1)
+
+                    for field in tempdf.columns:
+                        # print(field)
+                        if (t.list[field]=="numeric") and (tempdf[field].dtype!=np.float64) and (tempdf[field].dtype!=np.int64):
+                            tempdf[field] = tempdf[field].apply(lambda i: i.strip())
+
+                for field in tempdf.columns:
+                    stay_in_varchar = ['STATE', 'COUNTY']
+                    t = type_lookup(tempdf, os.path.splitext(item)[0], 1)
+                    if (t.list[field]=="numeric") and (tempdf[field].dtype!=np.float64) and (tempdf[field].dtype!=np.int64):
+                        tempdf[field] = tempdf[field].apply(lambda i: i.strip())
+
+                    if t.list[field]=="numeric" and field not in stay_in_varchar:
+                        tempdf[field] = pd.to_numeric(tempdf[field])
+
+                less_fields = ['statenm','countynm']
+                if os.path.splitext(item)[0] not in less_fields:
+                    # print(item)
+                    dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+                    dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
+
+                if 'COUNTY' in tempdf.columns:
+                # if tempdf['COUNTY'].any():
+                    tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+                    # tempdf['COUNTY'] =
+                if 'STATE' in tempdf.columns:
+                # if tempdf['STATE'].any():
+                    tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+                tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
+
+
                 dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
 
+class col_check:
+    unique = set()
+    test = None
+    probs = set()
 
+    def __init__(self, df, column):
+        self.test = df.copy(deep=True)
+        for i in self.test[f'{column}']:
+            if (' ' in i) and (i[0].isdigit()==False):
+                self.probs.add(i)
+            self.unique.add(i)
+
+
+test.columns
+for field in test.columns:
+    test[field] = test[field].apply(lambda i: i.strip() )
+    test[field] = test[field].apply(lambda i: np.nan if (i[0]!='-') or (i[0].isdigit()!=True) in i else i )
+test['DRY_WEIGHT_PERCENT'].apply(lambda i: 'sfdf' if (i[0]!='-') or (i[0].isdigit()!=True) else i )
+test.dtypes
+test['ALLOW_PERCENT'][1][0].isdigit()
+c = col_check(test, 'DRY_WEIGHT_PERCENT')
+c.probs
+str[0].isdigit()
+str[0]=='-'
+str = '1    '
+if ('    ' in str) and (str[0]!='-'):
+    print('ok')
+else:
+    print('no')
+c.probs
+tempdf[j] = tempdf[j].apply(lambda i: np.nan if ('   ' in i) or ('     ' in i) and (i[0]!='-') else i )
+test['DRY_WEIGHT_PERCENT']=test['DRY_WEIGHT_PERCENT'].apply(lambda i: i.strip())
+test['DRY_WEIGHT_PERCENT'].apply(lambda i: print(i) if (i[0]!='-') or (i.isdigit()!=True) else i )
+
+
+problems = {}
+t = type_lookup(test, 'production', 1)
+t.list
+for i in test.columns:
+    if (i == "PrimaryKey") or (i=="DBKey"):
+        pass
+    elif (t.list[i]=="numeric") and (test[i].dtype!=np.float64) and (test[i].dtype!=np.int64):
+        c = col_check(test, i)
+        problems.update({i:c.probs})
+
+
+str.strip()
+
+
+test
+
+dfs
+
+
+
+test = dfs['production'].copy(deep=True)
+c = col_check()
+
+unique = set()
+
+for i in test.items():
+    print(i[1])
+
+for i in test['ALLOW_PRODUCTION']:
+    if i not in unique:
+        unique.add(i)
+test['ALLOW_PRODUCTION']
+# for prob in probs:
+#     if test[prob].dtype!= np.float64:
+#         print(prob)
+# from datetime import datetime
+#
+# test['DBKey'] = ''.join(['NRI_',f'{datetime.now()}'])
+
+
+
+# dbkey_gen(test,'DBKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+#
+# test['COUNTY'].map(lambda x: f'{x:0>3}')
+# test['STATE'].map(lambda x: f'{x:0>2}')
+# if 'COUNTY' in test.columns:
+#     print('p')
+# pg_send('coordinates')
+drop_all()
+tblist = []
+len(tablelist)
+tablelist.append('coordinates')
+for i in tablelist:
+    tblist.append(i)
+for table in tablelist[7:]:
+    pg_send(table.lower())
 for table in dfs.keys():
     pg_send(table)
 
@@ -348,12 +567,35 @@ for file in os.listdir(firstp):
                     for prob in probs:
                         tempdf[prob] = tempdf[prob].apply(lambda i: np.nan if '       ' in i else i )
                         tempdf[prob] = pd.to_numeric(tempdf[prob])
-                    tempdf['RECON_WEIGHT'] = tempdf['RECON_WEIGHT'].apply(lambda i: np.nan if '        ' in i else i )
-                    tempdf['RECON_WEIGHT'] = pd.to_numeric(tempdf['RECON_WEIGHT'])
+                ### catching random whitespace
+                if 'ELEVATION' in tempdf.columns:
+                    tempdf['ELEVATION'] = tempdf['ELEVATION'].apply(lambda i: np.nan if '     ' in i else i)
+
+                if 'SOIL_CONFIDENCE_RATING' in tempdf.columns:
+                    tempdf['SOIL_CONFIDENCE_RATING'] = tempdf['SOIL_CONFIDENCE_RATING'].apply(lambda i: np.nan if ' ' in i else i)
+                tempdf['RECON_WEIGHT'] = tempdf['RECON_WEIGHT'].apply(lambda i: np.nan if '        ' in i else i )
+
+
+
+                tempdf['RECON_WEIGHT'] = pd.to_numeric(tempdf['RECON_WEIGHT'])
+
+                less_fields = ['statenm','countynm']
+                if os.path.splitext(item)[0] not in less_fields:
+                    # print(item)
+                    dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+
+                if 'COUNTY' in tempdf.columns:
+                # if tempdf['COUNTY'].any():
+                    tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+                if 'STATE' in tempdf.columns:
+                # if tempdf['STATE'].any():
+                    tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+                tempdf['DBKey'] = ''.join(['NRI_',f'{date.today()}'])
+
                 dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
 
-# test = dfs['production'].copy(deep=True)
+# test = dfs['gps'].copy(deep=True)
 # #first: the column is text/object, get a null in the space first? yes, the 8 spaces cannot be coerced
 # import numpy as np
 #
@@ -374,8 +616,8 @@ class col_check:
                 self.probs.add(i)
             self.unique.add(i)
 #
-# ccheck = col_check(test,'AW0125NESW')
-#
+ccheck = col_check(test,)
+ccheck.probs
 # problist = {}
 #
 # for i in probs:
@@ -386,36 +628,8 @@ class col_check:
 
 #
 # ccheck.unique
-test = dfs['production'].copy(deep=True)
-test['AW0625NESW'] = test['RECON_WEIGHT'].apply(lambda i: np.nan if '        ' in i else i )
-
-probs = ['AW0125NESW', 'AW0375NESW', 'AW0625NESW', 'AW1125NESW', 'AW1375NESW', 'AW0125NWSE', 'AW0375NWSE', 'AW0625NWSE', 'AW1125NWSE', 'AW1375NWSE']
-
-test.dtypes
-tablelist2.sort()
-for table in tablelist2[12:]:
-    pg_send(table.lower())
 
 
-
-for table in dfs.keys():
-    print(table)
-    pg_send(table)
-
-
-
-# pg_send()
-
-# drop_all()
-#
-firstp
-
-
-
-# pd.read_csv(exp_file)
-
-str = "TABLE.NAME"
-trns(str)
 
 def to_excel(str):
     temp = []
@@ -437,11 +651,7 @@ def to_csv(str):
     return '.'.join(temp)
 
 
-emp = []
-str = 'Table name something'
-to_csv(str)
 
-for i in str.replace(' ', '.').split('.'):
 
 
 ### all to_sql functions needd the DTYPES argument to force the PG types that
@@ -465,39 +675,7 @@ for all the columns in newtable.columns:
 
 
 """
-st = set()
-test = pd.read_csv(exp_file)
 
-t = {}
-for i in test['DATA.TYPE']:
-    if i not in st:
-        st.add(i)
-
-
-test = dfs['statenm'].copy(deep=True)
-
-type_lookup(test, 'concern')
-for i in test.itertuples():
-    print(getattr(i, 'STATE'))
-    if i.STATE == 4:
-        print(i)
-    if test.items().index(i)==True:
-        print(test.items().index(i))
-dbkey = {
-    1:'RangeChange2004-2008',
-    2:'RangeChange2009-2015',
-    3:'range2011-2016',
-    4:'rangepasture2017_2018'
-}
-
-import sqlalchemy
-
-test = dfs['statenm'].copy(deep=True)
-test
-t = type_lookup(test,'statenm',2)
-t.length
-
-type_lookup.list
 
 
 
