@@ -3,13 +3,14 @@ import os.path
 import pandas as pd
 import numpy as np
 from utils import db, sql_str, config, Acc
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, DDL
 import sqlalchemy_access as sa_a
 from psycopg2 import sql
 from tqdm import tqdm
 from datetime import date
 import urllib
 import pyodbc as pyo
+
 
 """
 type_lookup: tool used to go through the nri explanations file and create
@@ -63,7 +64,9 @@ def ret_access(whichmdb):
 path=os.environ['NRIDAT']
 dirs = os.listdir(path)
 firstp = os.path.join(path,dirs[0])
-
+accesspath =os.path.join(firstp,"target_mdb.accdb")
+a = Acc(accesspath)
+a_con = a.con
 class type_lookup:
     df = None
     tbl = None
@@ -148,11 +151,13 @@ def dbkey_gen(df,newfield, *fields):
     df[f'{newfield}'] = (df[[f'{field.strip()}' for field in fields]].astype('str')).sum(axis=1)
 # test = dfs['ptnote'].copy(deep=True)
 
-dfs['coordinates']
-pg_send('coordinates')
+# dfs['coordinates']
+# pg_send('coordinates')
+
 def pg_send(tablename):
 
     cursor = db.str.cursor()
+
     df = dfs[f'{tablename}']
     def chunker(seq, size):
         return (seq[pos:pos + size] for pos in range(0, len(seq), size))
@@ -182,10 +187,7 @@ def pg_send(tablename):
                     if key not in only_once:
                         only_once.add(key)
 
-
-
                         if temptypes[key]=='numeric':
-                            # print('found numeric')
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
                             for k in state_key:
                                 if k == "STATE":
@@ -194,14 +196,13 @@ def pg_send(tablename):
                                     onthefly.update({f'{k}':alchemy_ret('character',3)})
 
                         if temptypes[key]=='character':
-                            # print('found character')
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
 
                             if key == "PTNOTE":
                                 onthefly.update({"PTNOTE":sqlalchemy.types.Text})
 
                 cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
-                cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(os.path.join(firstp,"target_mdb.accdb")),index=False, if_exists='append', dtype=onthefly)
+                cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(accesspath),index=False, if_exists='append', dtype=onthefly)
                 pbar.update(chunksize)
             tqdm._instances.clear()
 
@@ -209,7 +210,7 @@ def pg_send(tablename):
 
     except Exception as e:
         print('mismatch between the columns in database table and supplied table')
-
+        cxn = ret_access(accesspath)
         df = dfs[f'{tablename}']
         dbdf = pd.read_sql(f' SELECT * FROM "{tablename}_NRI_Test" LIMIT 1', db.str)
 
@@ -228,8 +229,9 @@ def pg_send(tablename):
                                 ALTER TABLE "%s" ADD COLUMN "%s" %s
                                 """ % (f'{tablename}_NRI_Test',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper()))
                     db.str.commit()
+                    # print(cxn,f'{tablename}', f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )
+                    cxn.execute(DDL("ALTER TABLE {0} ADD COLUMN {1} {2}".format(f'{tablename}_NRI_Test',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )))
 
-        # print(f'reattempting ingest of table {tablename}')
         engine = create_engine(sql_str(config()))
         chunksize = int(len(df) / 10)
         tqdm.write(f'reattempting ingest of table {tablename}')
@@ -261,26 +263,25 @@ def pg_send(tablename):
                                     onthefly.update({f'{k}':alchemy_ret('character',3)})
 
                         if temptypes[key]=='character':
-
                             onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
                             if key == "PTNOTE":
                                 onthefly.update({"PTNOTE":sqlalchemy.types.Text})
 
                 cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
-                cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(os.path.join(firstp,"target_mdb.accdb")),index=False, if_exists='append', dtype=onthefly)
+                cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(accesspath),index=False, if_exists='append', dtype=onthefly)
                 pbar.update(chunksize)
                 tqdm._instances.clear()
 
         tqdm.write(f'{tablename} up in pg')
 
-#### testing chunker
+####
 
-# for table in dfs.keys():
-#     pg_send(table)
+# a=Acc(accesspath)
+# a.con
+# cur = a.con.cursor()
+# cur.execute()
 
-#
-
-drop_all("coordinates_NRI_Test")
+drop_all()
 def drop_all(specifictable = None):
     con = db.str
     cur = db.str.cursor()
@@ -290,7 +291,7 @@ def drop_all(specifictable = None):
        WHERE table_schema = 'public'""")
     for table in cur.fetchall():
         tablelist.append(table[0])
-    if specifictable!=None:
+    if specifictable!=None and specifictable in tablelist:
         try:
             cur.execute(
             sql.SQL('DROP TABLE IF EXISTS nritest.public.{0}').format(
@@ -340,7 +341,7 @@ tablelist =['CONCERN','COUNTYNM','DISTURBANCE','ECOSITE','GINTERCEPT', 'GPS','PI
 for file in os.listdir(firstp):
     if (file.find('Point Coordinates')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
         hfetch.pull(file)
-        fdict.update({'coordinates':hfetch.fields})
+        fdict.update({'pointcoordinates':hfetch.fields})
 
     if (file.find('2004')!=-1) and(file.find('Dump Columns')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
         for table in tablelist:
@@ -351,11 +352,14 @@ for file in os.listdir(firstp):
 # str = "e"
 # str.isalpha()
 ##### joining fieldnames w data
+
+coords = None
 for file in os.listdir(firstp):
     if (file.find('Coordinates')!=-1) and (file.endswith('.xlsx')==False):
         for item in os.listdir(os.path.join(firstp,file)):
             if item.find('pointcoordinates')!=-1:
-                tempdf =pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False, names=fdict['coordinates'])
+                tempdf =pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False, names=fdict['pointcoordinates'])
+
                 # fixing coordinates for example
 
                 # tempdf['TARGET_LONGITUDE'] = tempdf['TARGET_LONGITUDE'].map(lambda i: i*(-1))
@@ -385,8 +389,8 @@ for file in os.listdir(firstp):
 
 
                 # tempdf['data_source'] = bsnm
-
-                dfs.update({'coordinates':tempdf})
+                coords = tempdf.copy(deep=True)
+                dfs.update({'pointcoordinates':tempdf})
 
     if (file.find('RangeChange2004')!=-1) and (file.endswith('.xlsx')==False):
         for item in os.listdir(os.path.join(firstp, file)):
@@ -423,9 +427,54 @@ for file in os.listdir(firstp):
                 # create simple dbkey field
                 tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
 
+                if 'point' in item:
+                    # adding landuse from points table to coords
+
+                    point_slice = tempdf[['LANDUSE', 'PrimaryKey']].copy(deep=True)
+                    point_slice
+                    coords_dup = pd.concat([coords,point_slice], axis=1, join="inner")
+                    coords_full = coords_dup.loc[:,~coords_dup.columns.duplicated()]
+
+                    dfs.update({'pointcoordinates': coords_full})
+
 
                 dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
+dfs
+truelist = []
+for i in dfs.keys():
+    truelist.append(i)
+
+for i in truelist[0:5]:
+    pg_send(i)
+
+
+
+
+
+
+test = dfs['disturbance'].copy(deep=True)
+test2 =  dfs['disturbance'].copy(deep=True)
+test2['CULTIVATION']
+# pg_send('disturbance')
+
+
+tblname ='disturbance'
+field = 'MOWING'
+cxn = ret_access(os.path.join(firstp,'test_mdb.accdb'))
+try:
+    cxn.execute(DDL("ALTER TABLE {0} ADD COLUMN {1} {2}".format(f'{tblname}_NRI_Test', f'{field}','text')))
+
+except Exception as e:
+    # a = Acc(accesspath)
+    # a_con = a.con
+    # ac_cursor = a_con.cursor()
+    print(e)
+
+
+
+cxn.execute("SELECT * FROM disturbance_NRI_Test")
+a_con.close()
 
 class col_check:
     unique = set()
@@ -438,7 +487,7 @@ class col_check:
             if (' ' in i) and (i[0].isdigit()==False):
                 self.probs.add(i)
             self.unique.add(i)
-
+df = pd.read_sql("SELECT * FROM 'disturbance_NRI_Test'", cxn)
 
 test.columns
 for field in test.columns:
@@ -550,38 +599,44 @@ for file in os.listdir(firstp):
         for item in os.listdir(os.path.join(firstp, file)):
             if os.path.splitext(item)[0].upper() in tablelist2:
                 tempdf = pd.read_csv(os.path.join(firstp,file,item), sep='|', index_col=False,low_memory=False, names=fdict[os.path.splitext(item)[0].upper()])
-                tempdf['data_source'] = bsnm
-                if item.lower()=='production.txt':
-                    for prob in probs:
-                        tempdf[prob] = tempdf[prob].apply(lambda i: np.nan if '       ' in i else i )
-                        tempdf[prob] = pd.to_numeric(tempdf[prob])
-                ### catching random whitespace
-                if 'ELEVATION' in tempdf.columns:
-                    tempdf['ELEVATION'] = tempdf['ELEVATION'].apply(lambda i: np.nan if '     ' in i else i)
+                for field in tempdf.columns:
+                    stay_in_varchar = ['STATE', 'COUNTY']
+                    t = type_lookup(tempdf, os.path.splitext(item)[0], 2)
+                    if (t.list[field]=="numeric") and (tempdf[field].dtype!=np.float64) and (tempdf[field].dtype!=np.int64):
+                        tempdf[field] = tempdf[field].apply(lambda i: i.strip())
 
-                if 'SOIL_CONFIDENCE_RATING' in tempdf.columns:
-                    tempdf['SOIL_CONFIDENCE_RATING'] = tempdf['SOIL_CONFIDENCE_RATING'].apply(lambda i: np.nan if ' ' in i else i)
-                tempdf['RECON_WEIGHT'] = tempdf['RECON_WEIGHT'].apply(lambda i: np.nan if '        ' in i else i )
+                    if t.list[field]=="numeric" and field not in stay_in_varchar:
+                        if 'SAGEBRUSH_SHAPE' in field:
+                            tempdf[field] = tempdf[field].apply(lambda i: np.nan if ('.' in i) and (any([j.isdigit() for j in i])!=True) else i)
+                        tempdf[field] = pd.to_numeric(tempdf[field])
 
-
-
-                tempdf['RECON_WEIGHT'] = pd.to_numeric(tempdf['RECON_WEIGHT'])
-
+                # for all tables not in "less_fields" list, create two new fields
                 less_fields = ['statenm','countynm']
                 if os.path.splitext(item)[0] not in less_fields:
                     # print(item)
                     dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+                    dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
 
+                # if table has field 'COUNTY', fill with leading zeroes
                 if 'COUNTY' in tempdf.columns:
-                # if tempdf['COUNTY'].any():
                     tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+                # if table has field 'STATE', fill with leading zeroes
                 if 'STATE' in tempdf.columns:
-                # if tempdf['STATE'].any():
                     tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
-                tempdf['DBKey'] = ''.join(['NRI_',f'{date.today()}'])
+                # create simple dbkey field
+                tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
+
 
                 dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
+for i in tablelist2[2:5]:
+    pg_send(i.lower())
+test = pd.read_csv(os.path.join(firstp,'RangeChange2009-2015','pintercept.txt'), sep='|', index_col=False, low_memory=False,names=fdict['PINTERCEPT'])
+test = dfs['pintercept'].copy(deep=True)
+test['SAGEBRUSH_SHAPE'].astype('str').unique
+col_check(test,'SAGEBRUSH_SHAPE')
+col_check.unique
+str = "f.f"
 
 # test = dfs['gps'].copy(deep=True)
 # #first: the column is text/object, get a null in the space first? yes, the 8 spaces cannot be coerced
@@ -589,7 +644,6 @@ for file in os.listdir(firstp):
 #
 # test['RECON_WEIGHT'] = test['RECON_WEIGHT'].apply(lambda i: np.nan if '        ' in i else i )
 # test['RECON_WEIGHT'] = pd.to_numeric(test['RECON_WEIGHT'])
-#
 #
 
 class col_check:
@@ -599,11 +653,13 @@ class col_check:
 
     def __init__(self, df, column):
         self.test = df.copy(deep=True)
-        for i in self.test[f'{column}']:
+        for i in self.test[f'{column}'].astype('str'):
             if (' ' in i) and (i[0].isdigit()==False):
                 self.probs.add(i)
             self.unique.add(i)
 #
+
+test = dfs[]
 ccheck = col_check(test,)
 ccheck.probs
 # problist = {}
