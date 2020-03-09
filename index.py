@@ -51,7 +51,9 @@ it returns a sql alchemy engine
 
 
 """
-
+# cxn = ret_access(accesspath)
+# cxn.execute("SELECT * FROM concern_NRI_Test")
+# pd.read_sql("SELECT TOP 1 * FROM concern_NRI_Test", cxn)
 def ret_access(whichmdb):
     MDB = whichmdb
     DRV = '{Microsoft Access Driver (*.mdb, *.accdb)}'
@@ -152,12 +154,13 @@ def dbkey_gen(df,newfield, *fields):
 # test = dfs['ptnote'].copy(deep=True)
 
 # dfs['coordinates']
-# pg_send('coordinates')
+firstp
+pg_send('pointcoordinates')
 
 def pg_send(tablename):
-
-    cursor = db.str.cursor()
-
+    con = db.str
+    cursor = con.cursor()
+    cxn = ret_access(accesspath)
     df = dfs[f'{tablename}']
     def chunker(seq, size):
         return (seq[pos:pos + size] for pos in range(0, len(seq), size))
@@ -168,8 +171,11 @@ def pg_send(tablename):
         tqdm.write(f'sending {tablename} to pg...')
         only_once = set()
         onthefly = {}
-
+        df.to_csv(os.path.join(firstp,'2004',f'{tablename}_NRI_Test.csv'),index=False)
         with tqdm(total=len(df)) as pbar:
+            """
+            loop to use the progress bar on each iteration
+            """
 
             for i, cdf in enumerate(chunker(df,chunksize)):
                 replace = "replace" if i == 0 else "append"
@@ -178,48 +184,61 @@ def pg_send(tablename):
                 templengths = t.length
 
                 def alchemy_ret(type,len=None):
+                    """
+                    function that takes a type(numeric or character+length) returns
+                    a sqlalchemy/pg compatible type
+                    """
                     if (type=='numeric') and (len==None):
                         return sqlalchemy.types.Float(precision=3, asdecimal=True)
                     elif (type=='character') and (len!=None):
                         return sqlalchemy.types.VARCHAR(length=len)
 
-                    for key in temptypes:
-                        state_key = ["STATE", "COUNTY"]
-                        if key not in only_once:
-                            only_once.add(key)
 
-                            if temptypes[key]=='numeric':
-                                onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
-                                for k in state_key:
-                                    if k == "STATE":
-                                        onthefly.update({f'{k}':alchemy_ret('character',2)})
-                                    if k=="COUNTY":
-                                        onthefly.update({f'{k}':alchemy_ret('character',3)})
+                for key in temptypes:
+                    """
+                    creating custom dictionary per table to map pandas types to pg
+                    """
+                    state_key = ["STATE", "COUNTY"]
+                    if key not in only_once:
+                        only_once.add(key)
 
-                            if temptypes[key]=='character':
-                                onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
+                        if temptypes[key]=='numeric':
+                            onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
+                            for k in state_key:
+                                if k == "STATE":
+                                    onthefly.update({f'{k}':alchemy_ret('character',2)})
+                                if k=="COUNTY":
+                                    onthefly.update({f'{k}':alchemy_ret('character',3)})
 
-                                if key == "PTNOTE":
-                                    onthefly.update({"PTNOTE":sqlalchemy.types.Text})
+                        if temptypes[key]=='character':
+                            onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
+
+                            if key == "PTNOTE":
+                                onthefly.update({"PTNOTE":sqlalchemy.types.Text})
 
 
-                cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
+                # cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
+
+
                 try:
-                    secretdf = cdf
+                    # secretdf = cdf
                     cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(accesspath),index=False, if_exists='append', dtype=onthefly)
                 except Exception as e:
                     print(e)
                 pbar.update(chunksize)
+
             tqdm._instances.clear()
 
         tqdm.write(f'{tablename} up in pg')
 
     except Exception as e:
         print('mismatch between the columns in database table and supplied table')
-        cxn = ret_access(accesspath)
+        # cxn = ret_access(accesspath)
+
         df = dfs[f'{tablename}']
         print('checking length of columns vector...')
-        dbdf = pd.read_sql(f' SELECT * FROM "{tablename}_NRI_Test" LIMIT 1', db.str)
+        # dbdf = pd.read_sql(f' SELECT * FROM "{tablename}_NRI_Test" LIMIT 1', con)
+        dbdf = pd.read_sql(f"SELECT TOP 1 * FROM {tablename}_NRI_Test", cxn)
 
         if len(df.columns.tolist())>1:
             try:
@@ -234,16 +253,19 @@ def pg_send(tablename):
                                     'float64':'float'
                                     }
                         print(f'creating {item} column on pg...')
-                        cursor.execute("""
-                                    ALTER TABLE "%s" ADD COLUMN "%s" %s
-                                    """ % (f'{tablename}_NRI_Test',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper()))
-                        db.str.commit()
-                        print(f'creating {item} column on access..')
-                        print(cxn,f'{tablename}', f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )
+                        # cursor.execute("""
+                        #             ALTER TABLE "%s" ADD COLUMN "%s" %s
+                        #             """ % (f'{tablename}_NRI_Test',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper()))
+                        # con.commit()
+                        # print(f'creating {item} column on access..')
+                        # print(cxn,f'{tablename}', f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )
                         cxn.execute(DDL("ALTER TABLE {0} ADD COLUMN {1} {2}".format(f'{tablename}_NRI_Test',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )))
             except Exception as e:
                 print(e)
                 print('something went wrong')
+                cxn = ret_access(accesspath)
+                con = db.str
+                cursor = db.str.cursor()
 
         engine = create_engine(sql_str(config()))
         chunksize = int(len(df) / 10)
@@ -280,7 +302,7 @@ def pg_send(tablename):
                             if key == "PTNOTE":
                                 onthefly.update({"PTNOTE":sqlalchemy.types.Text})
 
-                cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
+                # cdf.to_sql(name=f'{tablename}_NRI_Test', con=engine,index=False, if_exists='append', dtype=onthefly)
                 cdf.to_sql(name=f'{tablename}_NRI_Test', con=ret_access(accesspath),index=False, if_exists='append', dtype=onthefly)
                 pbar.update(chunksize)
                 tqdm._instances.clear()
@@ -288,16 +310,30 @@ def pg_send(tablename):
         tqdm.write(f'{tablename} up in pg')
 
 ####
+newlist = []
+for i in dfs.keys():
+    newlist.append(i)
+for i in dfs.keys():
+    pg_send(i)
 
+
+for i in newlist[9:]:
+    pg_send(i)
+for i in tablelist2[3:]:
+    pg_send(i.lower())
+pg_send('disturbance')
 # a=Acc(accesspath)
 # a.con
 # cur = a.con.cursor()
 # cur.execute()
 
-
-def drop_all(specifictable = None):
+# cxn = ret_access(accesspath)
+# pg_send('pointcoordinates')
+# drop_all(a=False)
+def drop_all(specifictable = None, a=False):
     con = db.str
     cur = db.str.cursor()
+    cxn = ret_access(accesspath)
 
 
     tablelist = []
@@ -312,6 +348,9 @@ def drop_all(specifictable = None):
                      sql.Identifier(specifictable))
             )
             con.commit()
+            if a==True:
+                cxn.execute(DDL("DROP TABLE {0}".format(f'{specifictable}_NRI_Test')))
+
             print(f'successfully dropped {specifictable}')
 
         except Exception as e:
@@ -665,6 +704,8 @@ for file in os.listdir(firstp):
 
 tablelist2.remove('ECOSITE')
 
+
+
 # #first: the column is text/object, get a null in the space first? yes, the 8 spaces cannot be coerced
 # import numpy as np
 #
@@ -762,3 +803,6 @@ for all the columns in newtable.columns:
 
 
 #
+"""
+
+"""
