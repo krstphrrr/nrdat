@@ -32,12 +32,12 @@ table. if the new table has extra columns, the function will create the new
 column and add it in postgres before appending the data. the tool uses type_lookup
 to bring data from the nri explanations table when creating the postgres one.
 TODO's:
-- assert types on newly created columns?
-- state should be 2 characters long and if a rowvalue has less, a zero should
+- assert types on newly created columns
+X state should be 2 characters long and if a rowvalue has less, a zero should
 be appended in the extra space.
-- county should be 3 characters long and same. zeroes should fill values w less
-- all tables should have a PrimaryKey = first 5 fields concatenated
-- data_source should be DBKey = NRI + Date of ingestion
+X county should be 3 characters long and same. zeroes should fill values w less
+X all tables should have a PrimaryKey = first 5 fields concatenated
+X data_source should be DBKey = NRI + Date of ingestion
 
 
 drop_all: pulls all table names currently on pg, uses that list to drop them all
@@ -68,6 +68,7 @@ def ret_access(whichmdb):
     engine = create_engine(connection_url)
     return engine
 
+
 class type_lookup:
     df = None
     tbl = None
@@ -84,8 +85,8 @@ class type_lookup:
 
     def __init__(self,df,tablename,dbkeyindex, path):
 
-        mainp = os.path.dirname(os.path.dirname(firstp))
-        expl = os.listdir(os.path.dirname(os.path.dirname(firstp)))[-1]
+        mainp = os.path.dirname(os.path.dirname(path))
+        expl = os.listdir(os.path.dirname(os.path.dirname(path)))[-1]
         exp_file = os.path.join(mainp,expl)
 
         self.df = df
@@ -233,7 +234,8 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
                         os.mkdir(dir)
                     df.to_csv(os.path.join(dir,f'{tablename}_NRI_Test.csv'),index=False)
                 else:
-                    print("Please set the access/pg booleans in pg_send's arguments")
+                    tqdm.write("Please set the access/pg booleans in pg_send's arguments")
+                    # print("Please set the access/pg booleans in pg_send's arguments")
 
                 pbar.update(chunksize)
 
