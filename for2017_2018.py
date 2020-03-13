@@ -22,12 +22,12 @@ f.append_fields('rangepasture2017')
 
 # f.dfs
 
-for table in f.dfs.keys():
-    if 'pintercept' in table:
-        pass
-    else:
-        pg_send(fourthp,accesspath, f.dfs, table, access=True, pg=False)
-pg_send(fourthp, accesspath, f.dfs, 'pintercept', access=True, pg=False)
+# for table in f.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(fourthp,accesspath, f.dfs, table, access=False, pg=True)
+pg_send(fourthp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
 
 
 ##### setting it up

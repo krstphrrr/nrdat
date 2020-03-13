@@ -9,14 +9,11 @@ path=os.environ['NRIDAT']
 dirs = os.listdir(path)
 secondp = os.path.join(path,dirs[1])
 # os.listdir(secondp)
-accesspath = os.path.join(secondp,'Raw data dump','target_mdb.accdb')
+accesspath = os.path.join(secondp,'Raw data dump','target_mdb.accdb') # use if accesspath exists else pass
 # ret_access(accesspath)
 """
 ########### 2009-2016 or 2011-2016??
-1. type_lookup now requires path argument when initializing
-2.
- what about indicators
- getting in the first file dir
+
 """
 # f.path
 
@@ -32,15 +29,15 @@ accesspath = os.path.join(secondp,'Raw data dump','target_mdb.accdb')
 #     if 'pintercept' in table:
 #         pass
 #     else:
-#         pg_send(secondp,accesspath, f.dfs, table, access=True, pg=False)
-# pg_send(secondp, accesspath, f.dfs, 'pintercept', access=True, pg=False)
+#         pg_send(secondp,accesspath, f.dfs, table, access=False, pg=True)
+# pg_send(secondp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
 
 #
 # f = first_round(secondp,'range2011-2016' )
 # f.extract_fields('2009')
-#
+# #
 # f.append_fields('2011')
-
+# f.dfs
 
 class first_round:
     fields_dict = {}
