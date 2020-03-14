@@ -227,8 +227,8 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
                     cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
 
                 elif (access==False) and (pg!=False):
-                    pass
-                    # cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
+
+                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
                 elif (access==False) and (pg==False):
                     dir = os.path.join(mainpath,'csvs')
                     if not os.path.exists(dir):
@@ -251,138 +251,126 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
         df = dict[f'{tablename}']
         print('checking length of columns vector...')
         cont = None
-        pg = None
-        acc = None
+        pg_send = None
+        acc_send = None
         if (access!=False) and (pg!=False): # both true
             cont = True
-            pg = True
-            acc = True
+            pg_send = True
+            acc_send = True
             dbdf = pd.read_sql(f' SELECT * FROM "{tablename}" LIMIT 1', con)
         elif (access==False) and (pg!=False): # access false , pg true
             cont = True
-            pg=True
-            acc = False
+            pg_send = True
+            acc_send = False
             dbdf = pd.read_sql(f' SELECT * FROM "{tablename}" LIMIT 1', con)
         elif access!=False and (pg==False): # only access is true
             cont = True
-            pg = False
-            acc = True
+            pg_send = False
+            acc_send = True
             dbdf = pd.read_sql(f"SELECT TOP 1 * FROM {tablename}", cxn)
         else:
             cont = False
-            pg = False
-            acc = False
+            pg_send = False
+            acc_send = False
 
             print("Please set the access/pg booleans in pg_send's arguments")
 
 
         if cont is True:
-            print(len(df.columns.tolist()))
-            # if len(df.columns.tolist())>1:
-            #     try:
-            #         for item in df.columns.tolist():
-            #             if item not in dbdf.columns.tolist():
-            #                 print(f'{item} is not in db')
-            #                 # vartype = {
-            #                 #             'int64':'int',
-            #                 #             "object":'text',
-            #                 #             'datetime64[ns]':'timestamp',
-            #                 #             'bool':'boolean',
-            #                 #             'float64':'float'
-            #                 #             }
-            #
-            #                 if pg is True:
-            #                     print(f'creating {item} column on pg...')
-            #                     # cursor.execute("""
-            #                     #             ALTER TABLE "%s" ADD COLUMN "%s" %s
-            #                     #             """ % (f'{tablename}',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper()))
-            #                     # con.commit()
-            #                 if acc is True:
-            #                     print(f'creating {item} column on access..')
-            #                 # print(cxn,f'{tablename}', f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )
-            #                     # cxn.execute(DDL("ALTER TABLE {0} ADD COLUMN {1} {2}".format(f'{tablename}',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )))
-            #     except Exception as e:
-            #         print(e)
-            #         print('something went wrong')
-            #         cxn = ret_access(acc_path)
-            #         con = db.str
-            #         cursor = db.str.cursor()
+            # print(len(df.columns.tolist()))
+            if len(df.columns.tolist())>1:
+                try:
+                    for item in df.columns.tolist():
+                        if item not in dbdf.columns.tolist():
+                            print(f'{item} is not in db')
+                            vartype = {
+                                        'int64':'int',
+                                        "object":'text',
+                                        'datetime64[ns]':'timestamp',
+                                        'bool':'boolean',
+                                        'float64':'float'
+                                        }
 
-            # engine = create_engine(sql_str(config()))
-            # chunksize = int(len(df) / 10)
-            # tqdm.write(f'reattempting ingest of table {tablename}')
-            # with tqdm(total=len(df)) as pbar:
-            #
-            #     for i, cdf in enumerate(chunker(df,chunksize)):
-            #         replace = "replace" if i == 0 else "append"
-            #
-            #         t = type_lookup(cdf,tablename,2,mainpath)
-            #         temptypes = t.list
-            #         templengths = t.length
-            #
-            #         def alchemy_ret(type,len=None):
-            #             if (type=='numeric') and (len==None):
-            #                 return sqlalchemy.types.Float(precision=3, asdecimal=True)
-            #             elif (type=='character') and (len!=None):
-            #                 return sqlalchemy.types.VARCHAR(length=len)
-            #         for key in temptypes:
-            #             state_key = ["STATE", "COUNTY"]
-            #             if key not in only_once:
-            #                 only_once.add(key)
-            #                 if temptypes[key]=='numeric':
-            #
-            #                     onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
-            #                     for k in state_key:
-            #                         if k == "STATE":
-            #                             onthefly.update({f'{k}':alchemy_ret('character',2)})
-            #                         if k=="COUNTY":
-            #                             onthefly.update({f'{k}':alchemy_ret('character',3)})
-            #
-            #                 if temptypes[key]=='character':
-            #                     onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
-            #                     if key == "PTNOTE":
-            #                         onthefly.update({"PTNOTE":sqlalchemy.types.Text})
-            #
-            #         if (access!=False) and (pg!=False):
-            #             cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
-            #             cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
-            #
-            #         elif (access!=False) and (pg==False):
-            #             cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
-            #
-            #         elif (access==False) and (pg!=False):
-            #             cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
-            #         elif (access==False) and (pg==False):
-            #             dir = os.path.join(mainpath,'csvs')
-            #             if not os.path.exists(dir):
-            #                 os.mkdir(dir)
-            #             df.to_csv(os.path.join(dir,f'{tablename}.csv'),index=False)
-            #         else:
-            #             print("Please set the access/pg booleans in pg_send's arguments")
-            #         pbar.update(chunksize)
-            #         tqdm._instances.clear()
-            #
-            # tqdm.write(f'{tablename} up in pg')
+                            if pg_send is True:
+                                print(f'creating {item} column on pg...')
+                                cursor.execute("""
+                                            ALTER TABLE "%s" ADD COLUMN "%s" %s
+                                            """ % (f'{tablename}',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper()))
+                                con.commit()
+                            if acc_send is True:
+                                print(f'creating {item} column on access..')
+                            # print(cxn,f'{tablename}', f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )
+                                cxn.execute(DDL("ALTER TABLE {0} ADD COLUMN {1} {2}".format(f'{tablename}',f'{item}',vartype[f'{df[f"{item}"].dtype}'].upper() )))
+                except Exception as e:
+                    print(e)
+                    print('something went wrong')
+                    cxn = ret_access(acc_path)
+                    con = db.str
+                    cursor = db.str.cursor()
+
+            engine = create_engine(sql_str(config()))
+            chunksize = int(len(df) / 10)
+            tqdm.write(f'reattempting ingest of table {tablename}')
+            with tqdm(total=len(df)) as pbar:
+
+                for i, cdf in enumerate(chunker(df,chunksize)):
+                    replace = "replace" if i == 0 else "append"
+
+                    t = type_lookup(cdf,tablename,2,mainpath)
+                    temptypes = t.list
+                    templengths = t.length
+
+                    def alchemy_ret(type,len=None):
+                        if (type=='numeric') and (len==None):
+                            return sqlalchemy.types.Float(precision=3, asdecimal=True)
+                        elif (type=='character') and (len!=None):
+                            return sqlalchemy.types.VARCHAR(length=len)
+                    for key in temptypes:
+                        state_key = ["STATE", "COUNTY"]
+                        if key not in only_once:
+                            only_once.add(key)
+                            if temptypes[key]=='numeric':
+
+                                onthefly.update({f'{key}':alchemy_ret(temptypes[key])})
+                                for k in state_key:
+                                    if k == "STATE":
+                                        onthefly.update({f'{k}':alchemy_ret('character',2)})
+                                    if k=="COUNTY":
+                                        onthefly.update({f'{k}':alchemy_ret('character',3)})
+
+                            if temptypes[key]=='character':
+                                onthefly.update({f'{key}':alchemy_ret(temptypes[key],templengths[key])})
+                                if key == "PTNOTE":
+                                    onthefly.update({"PTNOTE":sqlalchemy.types.Text})
+
+                    if (access!=False) and (pg!=False):
+                        cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
+                        cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
+
+                    elif (access!=False) and (pg==False):
+                        cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
+
+                    elif (access==False) and (pg!=False):
+                        cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
+                    elif (access==False) and (pg==False):
+                        dir = os.path.join(mainpath,'csvs')
+                        if not os.path.exists(dir):
+                            os.mkdir(dir)
+                        df.to_csv(os.path.join(dir,f'{tablename}.csv'),index=False)
+                    else:
+                        print("Please set the access/pg booleans in pg_send's arguments")
+                    pbar.update(chunksize)
+                    tqdm._instances.clear()
+
+            tqdm.write(f'{tablename} up in pg')
         else:
             print('data ingest aborted.')
 
-df = pd.DataFrame({
-"col1":["  ", "2.0", ".","Dr. Martin 3rd"],
-"col2":["a","b","c","d"]
-})
-
-df["col1"].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
-
 f = df_builder_for_2004(firstp, 'RangeChange2004-2008')
 f.extract_fields('2004')
-f.expl
-# [i for i in f.df[f.df['DBKey']==]['TABLE.NAME'].unique()]
-f.fields_dict
-
-f.tablelist
-
 f.append_fields('2004')
 
+pg_send(firstp, accesspath, f.dfs, 'disturbance', access=False, pg=True)
 drop_all(a=True)
 def drop_all(specifictable = None, a=False):
     con = db.str
@@ -597,14 +585,15 @@ t.extract_fields('2009')
 
 t.append_fields('2009')
 t.dfs
-for table in t.dfs.keys():
-    if 'pintercept' in table:
-        pass
-    else:
-        pg_send(firstp,accesspath, t.dfs, table, access=False, pg=True)
-
-pg_send(firstp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
-
+pg_send(firstp, accesspath, t.dfs, 'disturbance', access=False, pg=True)
+# for table in t.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(firstp,accesspath, t.dfs, table, access=False, pg=True)
+#
+# pg_send(firstp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
+#
 
 
 ##### for rangechange2009+
