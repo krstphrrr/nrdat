@@ -5,6 +5,7 @@ import numpy as np
 from datetime import date
 from index import header_fetch, ret_access, type_lookup, dbkey_gen, pg_send
 
+
 path=os.environ['NRIDAT']
 dirs = os.listdir(path)
 secondp = os.path.join(path,dirs[1])
@@ -15,29 +16,12 @@ accesspath = os.path.join(secondp,'Raw data dump','target_mdb.accdb') # use if a
 ########### 2009-2016 or 2011-2016??
 
 """
-# f.path
-
-
-# secondp
-
-
-
-
-
-# pg_send(secondp, accesspath, f.dfs, 'concern', access=True, pg=False)
-# for table in f.dfs.keys():
-#     if 'pintercept' in table:
-#         pass
-#     else:
-#         pg_send(secondp,accesspath, f.dfs, table, access=False, pg=True)
-# pg_send(secondp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
-
 #
 # f = first_round(secondp,'range2011-2016' )
 # f.extract_fields('2009')
-# #
+#
 # f.append_fields('2011')
-# f.dfs
+# # # f.dfs
 
 class first_round:
     fields_dict = {}
@@ -110,6 +94,7 @@ class first_round:
                                 tempdf[field] = tempdf[field].apply(lambda i: i.strip())
                                 tempdf[field] = pd.to_numeric(tempdf[field])
                                 # print(field, t.list[field], tempdf[field].dtype, "filtered pt 2")
+                            
 
                             if field in fix_longitudes:
                                 tempdf[field] = tempdf[field].map(lambda i: i*(-1))
@@ -148,6 +133,11 @@ class first_round:
                             if t.list[field]=="numeric" and field not in stay_in_varchar:
                                 tempdf[field] = pd.to_numeric(tempdf[field])
 
+                            dot_list = ['HIT1','HIT2','HIT3', 'HIT4', 'HIT5', 'HIT6', 'NONSOIL']
+                            if field in dot_list:
+                                tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
+
+
                         # for all tables not in "less_fields" list, create two new fields
                         less_fields = ['statenm','countynm']
                         if os.path.splitext(item)[0] not in less_fields:
@@ -177,12 +167,9 @@ class first_round:
 
                         self.dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
-
-
-
-# os.listdir(secondp)
-# f = first_round(secondp,'range2011-2016' )
-# f.extract_fields('2009')
-# f.append_fields('2011')
-# f.dfs
-# f.fields_dict.keys()
+# for table in f.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(secondp,accesspath, f.dfs, table, access=True, pg=False)
+# pg_send(secondp, accesspath, f.dfs, 'pintercept', access=True, pg=False)

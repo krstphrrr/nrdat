@@ -12,6 +12,7 @@ import urllib
 import pyodbc as pyo
 
 
+
 """
 type_lookup: tool used to go through the nri explanations file and create
 internal dictionaries with the data one wants based on the nri_dataframe, the
@@ -57,8 +58,6 @@ path=os.environ['NRIDAT']
 dirs = os.listdir(path)
 firstp = os.path.join(path,dirs[0])
 accesspath =os.path.join(firstp,"target_mdb.accdb")
-# a = Acc(accesspath)
-# a_con = a.con
 
 def ret_access(whichmdb):
     MDB = whichmdb
@@ -156,9 +155,9 @@ def dbkey_gen(df,newfield, *fields):
 def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
     """
     usage:
-    pg_send('target_directory_path', 'path_to_access_file', target_dictionary, 'target_table')
+    pg_send('target_directory_path', 'path_to_access_file', target_dictionary, 'target_table', acces=False/True, pg=False/True)
     todo:
-    - switching off/on access and pg
+    X switching off/on access and pg --done
     """
     con = db.str
     cursor = con.cursor()
@@ -366,12 +365,24 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
         else:
             print('data ingest aborted.')
 
-f = df_builder_for_2004(firstp, 'RangeChange2004-2008')
-f.extract_fields('2004')
-f.append_fields('2004')
+# f = df_builder_for_2004(firstp, 'RangeChange2004-2008')
+# f.extract_fields('2004')
+# f.append_fields('2004')
+# f.dfs
 
-pg_send(firstp, accesspath, f.dfs, 'disturbance', access=False, pg=True)
-drop_all(a=True)
+# pg_send(firstp, accesspath, f.dfs, 'pintercept', access=True, pg=False)
+#
+# drop_all(a=True)
+#
+# for table in f.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(firstp,accesspath, f.dfs, table, access=True, pg=False)
+
+# pg_send(firstp,accesspath, f.dfs, table, access=True, pg=False)
+#
+
 def drop_all(specifictable = None, a=False):
     con = db.str
     cur = db.str.cursor()
@@ -411,7 +422,7 @@ def drop_all(specifictable = None, a=False):
         except Exception as e:
             con = db.str
             cur = db.str.cursor()
-            print(e)
+            # print(e)
 
 class df_builder_for_2004:
     fields_dict = {}
@@ -543,7 +554,7 @@ class df_builder_for_2004:
                                 tempdf[field] = pd.to_numeric(tempdf[field])
 
                             # for fields with dots in them..
-                            dot_list = ['HIT1','HIT2','HIT3', 'HIT4', 'HIT5', 'HIT6']
+                            dot_list = ['HIT1','HIT2','HIT3', 'HIT4', 'HIT5', 'HIT6', 'NONSOIL']
                             if field in dot_list:
                                 tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
 
@@ -580,19 +591,19 @@ class df_builder_for_2004:
 
 
 
-t = df_builder_for_2009(firstp,'RangeChange2009-2015')
-t.extract_fields('2009')
-
-t.append_fields('2009')
-t.dfs
-pg_send(firstp, accesspath, t.dfs, 'disturbance', access=False, pg=True)
+# t = df_builder_for_2009(firstp,'RangeChange2009-2015')
+# t.extract_fields('2009')
+# # #
+# t.append_fields('2009')
+# t.dfs
+# # pg_send(firstp, accesspath, t.dfs, 'disturbance', access=False, pg=True)
 # for table in t.dfs.keys():
 #     if 'pintercept' in table:
 #         pass
 #     else:
-#         pg_send(firstp,accesspath, t.dfs, table, access=False, pg=True)
-#
-# pg_send(firstp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
+#         pg_send(firstp,accesspath, t.dfs, table, access=True, pg=False)
+
+# pg_send(firstp, accesspath, t.dfs, 'pintercept', access=True, pg=False)
 #
 
 
@@ -701,6 +712,11 @@ class df_builder_for_2009:
                                     tempdf[field] = tempdf[field].apply(lambda i: np.nan if ('.' in i) and (any([j.isdigit() for j in i])!=True) else i)
                                 tempdf[field] = pd.to_numeric(tempdf[field])
 
+                            dot_list = ['HIT1','HIT2','HIT3', 'HIT4', 'HIT5', 'HIT6', 'NONSOIL']
+                            if field in dot_list:
+                                tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
+
+
                         # for all tables not in "less_fields" list, create two new fields
                         less_fields = ['statenm','countynm']
                         if os.path.splitext(item)[0] not in less_fields:
@@ -725,17 +741,17 @@ class df_builder_for_2009:
                         #     self.dfs.update({'pointcoordinates': coords_full})
                         self.dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
-t = df_builder_for_2009(firstp,2)
-t.extract_fields('2009')
-t.append_fields('2009')
-t.fields_dict
-for table in f.dfs.keys():
-    if 'pintercept' in table:
-        pass
-    else:
-        pg_send(firstp,accesspath, f.dfs, table, access=False, pg=True)
-
-pg_send(firstp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
+# t = df_builder_for_2009(firstp,2)
+# t.extract_fields('2009')
+# t.append_fields('2009')
+# t.fields_dict
+# for table in f.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(firstp,accesspath, f.dfs, table, access=False, pg=True)
+#
+# pg_send(firstp, accesspath, f.dfs, 'pintercept', access=False, pg=True)
 
 class col_check:
     unique = set()
