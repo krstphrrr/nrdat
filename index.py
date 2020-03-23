@@ -152,7 +152,7 @@ def dbkey_gen(df,newfield, *fields):
     df[f'{newfield}'] = (df[[f'{field.strip()}' for field in fields]].astype('str')).sum(axis=1)
 
 
-def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
+def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False, whichdbkey=None):
     """
     usage:
     pg_send('target_directory_path', 'path_to_access_file', target_dictionary, 'target_table', acces=False/True, pg=False/True)
@@ -181,7 +181,7 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
 
             for i, cdf in enumerate(chunker(df,chunksize)):
                 replace = "replace" if i == 0 else "append"
-                t = type_lookup(cdf,tablename,2,mainpath)
+                t = type_lookup(cdf,tablename,whichdbkey,mainpath)
                 temptypes = t.list
                 templengths = t.length
 
@@ -219,15 +219,15 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
                                 onthefly.update({"PTNOTE":sqlalchemy.types.Text})
                 # checking access/pg switch
                 if (access!=False) and (pg!=False):
-                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
-                    cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
+                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
+                    cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists=replace, dtype=onthefly)
 
                 elif (access!=False) and (pg==False):
-                    cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
+                    cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists=replace, dtype=onthefly)
 
                 elif (access==False) and (pg!=False):
 
-                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
+                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
                 elif (access==False) and (pg==False):
                     dir = os.path.join(mainpath,'csvs')
                     if not os.path.exists(dir):
@@ -315,7 +315,7 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
                 for i, cdf in enumerate(chunker(df,chunksize)):
                     replace = "replace" if i == 0 else "append"
 
-                    t = type_lookup(cdf,tablename,2,mainpath)
+                    t = type_lookup(cdf,tablename,whichdbkey,mainpath)
                     temptypes = t.list
                     templengths = t.length
 
@@ -343,14 +343,14 @@ def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False):
                                     onthefly.update({"PTNOTE":sqlalchemy.types.Text})
 
                     if (access!=False) and (pg!=False):
-                        cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
-                        cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
+                        cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
+                        cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists=replace, dtype=onthefly)
 
                     elif (access!=False) and (pg==False):
-                        cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists='append', dtype=onthefly)
+                        cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists=replace, dtype=onthefly)
 
                     elif (access==False) and (pg!=False):
-                        cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists='append', dtype=onthefly)
+                        cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
                     elif (access==False) and (pg==False):
                         dir = os.path.join(mainpath,'csvs')
                         if not os.path.exists(dir):

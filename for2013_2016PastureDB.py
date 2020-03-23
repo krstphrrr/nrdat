@@ -12,15 +12,16 @@ dirs = os.listdir(path)
 thirdp = os.path.join(path,dirs[2])
 accesspath = os.path.join(thirdp,'Raw data dump', 'target_mdb.accdb')
 
-t = first_round(thirdp,'range2011-2016')
-t.extract_fields('2009')
+# t = first_round(thirdp,'range2011-2016')
+# t.extract_fields('2009')
 # t.fields_dict
-t.append_fields('pasture2013')
-t.dfs['countynm']
-for table in t.dfs.keys():
-    if 'pintercept' in table:
-        pass
-    else:
-        pg_send(thirdp,accesspath, t.dfs, table, access=True, pg=False)
-
-pg_send(thirdp, accesspath, t.dfs, 'pintercept', access=True, pg=False)
+# # t.fields_dict
+# t.append_fields('pasture2013')
+t.dfs['co']
+# for table in t.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(thirdp,accesspath, t.dfs, table, access=True, pg=False)
+#
+# pg_send(thirdp, accesspath, t.dfs, 'pintercept', access=True, pg=False)

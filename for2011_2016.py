@@ -36,11 +36,18 @@ class first_round:
     realp = None
     temp_coords =None
     tdf = None
+    _dbkey = {
+        'RangeChange2004-2008':1,
+        'RangeChange2009-2015':2,
+        'range2011-2016':3,
+        'rangepasture2017_2018':4
+    }
 
     """
     custom rools
     """
     set_2018 = None
+    dbkey = None
 
 
     tablelist = []
@@ -53,6 +60,8 @@ class first_round:
         self.df = pd.read_csv(os.path.join(self.mainp, self.expl))
         self.dbkeys = {key:value for (key,value) in enumerate([i for i in self.df['DBKey'].unique()])}
         self.tablelist = [i for i in self.df[self.df['DBKey']==f'{dbkey}']['TABLE.NAME'].unique()]
+        if dbkey in self._dbkey.keys():
+            self.dbkey = self._dbkey[dbkey]
         if 'rangepasture2017_2018' in dbkey:
             self.set_2018 = '.csv'
         else:
@@ -85,7 +94,7 @@ class first_round:
                         tempdf =pd.read_csv(os.path.join(self.realp,file,item), sep='|', index_col=False, names=self.fields_dict['pointcoordinates'] )
                         # self.tdf = tempdf
 
-                        t = type_lookup(tempdf, os.path.splitext(item)[0], 3, self.path)
+                        t = type_lookup(tempdf, os.path.splitext(item)[0], self.dbkey, self.path)
                         fix_longitudes = ['TARGET_LONGITUDE','FIELD_LONGITUDE']
                         for field in tempdf.columns:
                             # print(field,t.list[field],tempdf[field].dtype, "no filter")
@@ -94,7 +103,6 @@ class first_round:
                                 tempdf[field] = tempdf[field].apply(lambda i: i.strip())
                                 tempdf[field] = pd.to_numeric(tempdf[field])
                                 # print(field, t.list[field], tempdf[field].dtype, "filtered pt 2")
-                            
 
                             if field in fix_longitudes:
                                 tempdf[field] = tempdf[field].map(lambda i: i*(-1))
@@ -166,6 +174,10 @@ class first_round:
 
 
                         self.dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
+
+                    else:
+                        print(os.path.splitext(item)[0].upper())
+                        ## if the tables are not in tablelist
 
 # for table in f.dfs.keys():
 #     if 'pintercept' in table:
