@@ -17,7 +17,7 @@ accesspath = os.path.join(thirdp,'Raw data dump', 'target_mdb.accdb')
 # t.fields_dict
 # # t.fields_dict
 # t.append_fields('pasture2013')
-t.dfs['co']
+# t.dfs['concern']
 # for table in t.dfs.keys():
 #     if 'pintercept' in table:
 #         pass

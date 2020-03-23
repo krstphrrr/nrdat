@@ -194,4 +194,4 @@ wow.fixed.shape
 
 # wow.fixed.to_sql(name='concern', con=engine, index=False)
 drop_all(a=True)
-df_send(wow.fixed, 'statenm')
+df_send(wow.fixed, 'concern')
