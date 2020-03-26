@@ -97,12 +97,12 @@ class type_lookup:
         is_target = nri_explanations['TABLE.NAME'] == f'{tablename.upper()}'
         self.target = nri_explanations[is_target]
         for i in self.df.columns:
-            temprow = self.target[(self.target['FIELD.NAME']==i) & (self.target['DBKey']==f'{key}')  ]
+            temprow = self.target[(self.target['FIELD.NAME']==i) & (self.target['DBKey']==key)  ]
 
             packed = temprow["DATA.TYPE"].values
             lengths = temprow["FIELD.SIZE"].values
             # self.length = temprow['FIELD.SIZE']
-            # print(packed)
+
             for j in packed:
                 self.list.update({ i:f'{j}'})
             for k in lengths:

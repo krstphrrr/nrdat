@@ -18,16 +18,16 @@ f.extract_fields('2018')
 # for file in os.listdir(f.realp):
     # if (file.find(f'{findable_string}')!=-1) and(file.find('Dump Columns')!=-1) and (file.startswith('~$')==False) and (file.endswith('.csv')==True):
         # print(i)
-f.append_fields('rangepasture2017')
+# f.append_fields('rangepasture2017')
 
 # f.dfs
-
-for table in f.dfs.keys():
-    if 'pintercept' in table:
-        pass
-    else:
-        pg_send(fourthp,accesspath, f.dfs, table, access=True, pg=False)
-pg_send(fourthp, accesspath, f.dfs, 'pintercept', access=True, pg=False)
+#
+# for table in f.dfs.keys():
+#     if 'pintercept' in table:
+#         pass
+#     else:
+#         pg_send(fourthp,accesspath, f.dfs, table, access=True, pg=False)
+# pg_send(fourthp, accesspath, f.dfs, 'pintercept', access=True, pg=False)
 
 
 ##### setting it up

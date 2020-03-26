@@ -13,7 +13,7 @@ from datetime import date
 import urllib
 import pyodbc as pyo
 
-from index import pg_send, df_builder_for_2004, df_builder_for_2009, drop_all
+from index import pg_send, df_builder_for_2004, df_builder_for_2009, drop_all, ret_access
 from for2011_2016 import first_round
 from index import type_lookup
 
@@ -23,6 +23,7 @@ dirs = os.listdir(path)
 firstp, secondp, thirdp, fourthp = [os.path.join(path,i) for i in dirs]
 
 accesspath = os.path.join(firstp,'Raw data dump', 'target_mdb.accdb')
+acc_path = None # change
 """
 df creation
 2004
@@ -72,12 +73,45 @@ fifth = l.dfs.copy()
 """
 getting whole table
 """
-wow.final_df.drop_duplicates(ignore_index=True)
-wow.final_df.STATE.dtype==pd.dtype('O')
-wow.final_df[wow.final_df.STATE=='04'].STATENM.tolist()
-pd.__version__
+# wow.final_df.drop_duplicates(ignore_index=True)
+# wow.final_df.STATE.dtype==pd.dtype('O')
+# wow.final_df[wow.final_df.STATE=='04'].STATENM.tolist()
+# pd.__version__
+#
+# test1 = type_lookup(df1,'disturbance',1,firstp)
+# test2 = type_lookup(df2,'disturbance',2,firstp)
+# del(test2)
+# test2.target[(test2.target['FIELD.NAME']=='STATE') & (test2.target['DBKey']=='RangeChange2009-2015')]
+# test2.target[test2.target['DBKey']=='RangeChange2009-2015']
+# for i in test2.df.columns:
+#     temprow = test2.target[(test2.target['FIELD.NAME']==i) & (test2.target['DBKey']=='RangeChange2009-2015')  ]
+# temprow
+# test2.target[(test2.target['FIELD.NAME']=="") & (test2.target['DBKey']==f'{key}')  ]
+# test3 = type_lookup(df3, 'disturbance', 3, thirdp)
+# test4 = type_lookup(df4, 'disturbance', 4, fourthp)
+# for i in df2.columns:
+#     if i not in test2.df.columns:
+#         print(i)
+#
+# for i in test2.list.keys():
+#     if i not in df2.columns:
+#         print(i)
+# len(test1.list.keys())
+# cnt=0
+# for i in test2.list.keys():
+#     print(i, cnt)
+#     cnt+=1
+# for i in test2.list.keys():
+#     if i.find('LARGER_MAMMALS')!=-1:
+#         print('ok')
+#     if i not in test4.list.keys():
+#         print(i)
+#
+# for i in df1.columns:
+#     if i not in df2.columns:
+#         print(i)
 
-import numpy as np
+
 class appender:
     in_dfs = {}
     tbl = None
@@ -102,14 +136,16 @@ class appender:
     def fix(self):
         for each_col in self.final_df.columns:
             if (self.final_df[each_col].dtype!=np.float64) and (self.final_df[each_col].dtype!=np.int64):
-                self.final_df[each_col] = self.final_df[each_col].apply(lambda i: i.strip())
+                # print(self.final_df[each_col],self.final_df[each_col].dtype)
+                self.final_df[each_col] = self.final_df[each_col].apply(lambda i: i.strip() if isinstance(i,float)!=True else i)
         self.fixed = self.final_df[~self.final_df.duplicated()]
 
 
 
-def df_send(selectdf, tablename):
+def df_send(selectdf, tablename, acc = None, pg=None):
     df = selectdf
     # engine = create_engine(sql_str(config()))
+    cxn = ret_access(acc_path)
     def chunker(seq, size):
         return (seq[pos:pos + size] for pos in range(0, len(seq), size))
     try:
@@ -162,14 +198,33 @@ def df_send(selectdf, tablename):
                             if key == "PTNOTE":
                                 onthefly.update({"PTNOTE":sqlalchemy.types.Text})
                 """"""
-                cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
-            pbar.update(chunksize)
+                if (acc!=False) and (pg!=False):
+                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
+                    cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists=replace, dtype=onthefly)
+
+                elif (acc!=False) and (pg==False):
+                    cdf.to_sql(name=f'{tablename}', con=ret_access(acc_path),index=False, if_exists=replace, dtype=onthefly)
+
+                elif (acc==False) and (pg!=False):
+
+                    cdf.to_sql(name=f'{tablename}', con=engine,index=False, if_exists=replace, dtype=onthefly)
+                elif (acc==False) and (pg==False):
+                    dir = os.path.join(mainpath,'csvs')
+                    if not os.path.exists(dir):
+                        os.mkdir(dir)
+                    df.to_csv(os.path.join(dir,f'{tablename}.csv'),index=False)
+                else:
+                    tqdm.write("Please set the access/pg booleans in pg_send's arguments")
+                pbar.update(chunksize)
+            tqdm._instances.clear()
         tqdm.write(f'{tablename} sent to db')
     except Exception as e:
         print(e)
 
-t.dfs.keys()
-tname = 'concern'
+"""
+needs to be generalized into class/function
+"""
+tname = 'pintercept'
 df1=first[tname].copy(deep=True)
 df2=second[tname].copy(deep=True)
 df3 = third[tname].copy(deep=True)
@@ -181,17 +236,16 @@ df2.shape
 df3.shape
 df4.shape
 df5.shape
+del(wow)
 
 wow = appender(df1,df2,df3,df4,df5,tablename=tname)
 
 wow.a()
-[wow.final_df[i].dtype for i in wow.final_df.columns]
-wow.fix()
 
-wow.fixed[wow.fixed.SURVEY==2013]
-wow.fixed.shape
+
+wow.fix()
 
 
 # wow.fixed.to_sql(name='concern', con=engine, index=False)
 drop_all(a=True)
-df_send(wow.fixed, 'concern')
+df_send(wow.fixed, 'concern', acc=True, pg=False)
