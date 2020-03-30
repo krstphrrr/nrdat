@@ -11,8 +11,8 @@ path=os.environ['NRIDAT']
 dirs = os.listdir(path)
 fourthp = os.path.join(path,dirs[3])
 accesspath = os.path.join(fourthp,'Raw data dump', 'target_mdb.accdb')
-f = first_round(fourthp, 'rangepasture2017_2018')
-f.extract_fields('2018')
+# f = first_round(fourthp, 'rangepasture2017_2018')
+# f.extract_fields('2018')
 # f.fields_dict
 # findable_string = '2018'
 # for file in os.listdir(f.realp):

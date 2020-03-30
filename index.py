@@ -147,9 +147,16 @@ class header_fetch:
         else:
             print('file is not in supplied directory')
 
-
+# test = pd.DataFrame(
+# {"a":[1,'0003',3],"b":['04','05','06']}
+#
+# )
+# test
+#
+# dbkey_gen(test,'newfield', 'a','b')
 def dbkey_gen(df,newfield, *fields):
-    df[f'{newfield}'] = (df[[f'{field.strip()}' for field in fields]].astype('str')).sum(axis=1)
+    df[f'{newfield}'] = (df[[f'{field.strip()}' for field in fields]].astype(str)).agg(''.join,axis=1).astype(object)
+
 
 
 def pg_send(mainpath,acc_path, dict, tablename, access = False, pg=False, whichdbkey=None):
