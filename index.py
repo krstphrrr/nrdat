@@ -147,13 +147,15 @@ class header_fetch:
         else:
             print('file is not in supplied directory')
 
+#
 # test = pd.DataFrame(
-# {"a":[1,'0003',3],"b":['04','05','06']}
-#
+# {
+# 'a':[40,'05'],
+# 'b':['059', '060'],
+# 'c':['030603R','040101R']
+# }
 # )
-# test
-#
-# dbkey_gen(test,'newfield', 'a','b')
+# dbkey_gen(test, 'newfield', 'a','b','c')
 def dbkey_gen(df,newfield, *fields):
     df[f'{newfield}'] = (df[[f'{field.strip()}' for field in fields]].astype(str)).agg(''.join,axis=1).astype(object)
 
@@ -565,21 +567,27 @@ class df_builder_for_2004:
                             if field in dot_list:
                                 tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
 
+                            ##### STRIP ANYWAY
+                            if tempdf[field].dtype==np.object:
+                                tempdf[field] = tempdf[field].apply(lambda i: i.strip() if type(i)!=float else i)
+
+
                         # for all tables not in "less_fields" list, create two new fields
+
+                            # if table has field 'COUNTY', fill with leading zeroes
+                            if 'COUNTY' in tempdf.columns:
+                                tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+                            # if table has field 'STATE', fill with leading zeroes
+                            if 'STATE' in tempdf.columns:
+                                tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+                            # create simple dbkey field
+                            tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
+
                         less_fields = ['statenm','countynm']
                         if os.path.splitext(item)[0] not in less_fields:
                             # print(item)
                             dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
                             dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
-
-                        # if table has field 'COUNTY', fill with leading zeroes
-                        if 'COUNTY' in tempdf.columns:
-                            tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
-                        # if table has field 'STATE', fill with leading zeroes
-                        if 'STATE' in tempdf.columns:
-                            tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
-                        # create simple dbkey field
-                        tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
 
                         if 'point' in item:
                             # adding landuse from points table to coords
@@ -723,6 +731,22 @@ class df_builder_for_2009:
                             if field in dot_list:
                                 tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
 
+                            ##### STRIP ANYWAY
+                            ##### STRIP ANYWAY
+                            if tempdf[field].dtype==np.object:
+                                tempdf[field] = tempdf[field].apply(lambda i: i.strip() if type(i)!=float else i)
+
+
+
+
+                            # if table has field 'COUNTY', fill with leading zeroes
+                            if 'COUNTY' in tempdf.columns:
+                                tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+                            # if table has field 'STATE', fill with leading zeroes
+                            if 'STATE' in tempdf.columns:
+                                tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+                            # create simple dbkey field
+
 
                         # for all tables not in "less_fields" list, create two new fields
                         less_fields = ['statenm','countynm']
@@ -730,14 +754,6 @@ class df_builder_for_2009:
                             # print(item)
                             dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
                             dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
-
-                        # if table has field 'COUNTY', fill with leading zeroes
-                        if 'COUNTY' in tempdf.columns:
-                            tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
-                        # if table has field 'STATE', fill with leading zeroes
-                        if 'STATE' in tempdf.columns:
-                            tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
-                        # create simple dbkey field
                         tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
 
                         # if 'point' in item:

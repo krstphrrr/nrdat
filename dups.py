@@ -1,4 +1,5 @@
 
+
 import os, sqlalchemy
 import os.path
 import pandas as pd
@@ -32,10 +33,12 @@ f = df_builder_for_2004(firstp,'RangeChange2004-2008')
 f.extract_fields('2004')
 f.append_fields('2004')
 # pg_send(firstp,accesspath, f.dfs, 'concern', access=False, pg=True,whichdbkey=1 )
-
+# f.dfs['disturbance']
 first = f.dfs.copy()
+# f.dfs['concern']
+# len(f.dfs['concern'].PrimaryKey[0])
 
-
+# f.dfs['concern']
 """
 2009
 """
@@ -44,6 +47,7 @@ s.extract_fields('2009')
 s.append_fields('2009')
 
 second = s.dfs.copy()
+# s.dfs['concern']
 """
 2011
 """
@@ -51,7 +55,7 @@ t = first_round(secondp, 'range2011-2016')
 t.extract_fields('2009') # file is called 2009-2016 NRI Range Data Dump Columns
 t.append_fields('2011')
 third = t.dfs.copy()
-
+# t.dfs['concern']
 """
 2013
 """
@@ -70,47 +74,11 @@ l.extract_fields('2018')
 l.append_fields('rangepasture2017')
 fifth = l.dfs.copy()
 
+
+# l.dfs['concern']
 """
 getting whole table
 """
-# wow.final_df.drop_duplicates(ignore_index=True)
-# wow.final_df.STATE.dtype==pd.dtype('O')
-# wow.final_df[wow.final_df.STATE=='04'].STATENM.tolist()
-# pd.__version__
-#
-# test1 = type_lookup(df1,'disturbance',1,firstp)
-# test2 = type_lookup(df2,'disturbance',2,firstp)
-# del(test2)
-# test2.target[(test2.target['FIELD.NAME']=='STATE') & (test2.target['DBKey']=='RangeChange2009-2015')]
-# test2.target[test2.target['DBKey']=='RangeChange2009-2015']
-# for i in test2.df.columns:
-#     temprow = test2.target[(test2.target['FIELD.NAME']==i) & (test2.target['DBKey']=='RangeChange2009-2015')  ]
-# temprow
-# test2.target[(test2.target['FIELD.NAME']=="") & (test2.target['DBKey']==f'{key}')  ]
-# test3 = type_lookup(df3, 'disturbance', 3, thirdp)
-# test4 = type_lookup(df4, 'disturbance', 4, fourthp)
-# for i in df2.columns:
-#     if i not in test2.df.columns:
-#         print(i)
-#
-# for i in test2.list.keys():
-#     if i not in df2.columns:
-#         print(i)
-# len(test1.list.keys())
-# cnt=0
-# for i in test2.list.keys():
-#     print(i, cnt)
-#     cnt+=1
-# for i in test2.list.keys():
-#     if i.find('LARGER_MAMMALS')!=-1:
-#         print('ok')
-#     if i not in test4.list.keys():
-#         print(i)
-#
-# for i in df1.columns:
-#     if i not in df2.columns:
-#         print(i)
-
 
 class appender:
     in_dfs = {}
@@ -120,6 +88,11 @@ class appender:
     count = 1
     fixed = None
     def __init__(self,*df, tablename):
+        self.in_dfs = {}
+        self.unrepeater = set()
+        self.final_df = None
+        self.count = 1
+        self.fixed = None
         self.tbl = tablename
         for i in df:
             if f'{self.tbl}{self.count}' not in self.unrepeater:
@@ -135,11 +108,33 @@ class appender:
                 self.final_df = self.final_df.append(self.in_dfs[i[1]], ignore_index=True)
     def fix(self):
         for each_col in self.final_df.columns:
-            if (self.final_df[each_col].dtype!=np.float64) and (self.final_df[each_col].dtype!=np.int64):
-                # print(self.final_df[each_col],self.final_df[each_col].dtype)
-                self.final_df[each_col] = self.final_df[each_col].apply(lambda i: i.strip() if isinstance(i,float)!=True else i)
-        self.fixed = self.final_df[~self.final_df.duplicated()]
+            # if (self.final_df[each_col].dtype!=np.float64) and (self.final_df[each_col].dtype!=np.int64):
+            #     # print(self.final_df[each_col],self.final_df[each_col].dtype)
+            #
+            #     self.final_df[each_col] = self.final_df[each_col].astype(object).apply(lambda i: i.strip() if pd.isnull(i)!=True else i)
+        # per table fixes
+            if self.tbl.find('ecosite')!=-1:
+                self.final_df.replace('',np.nan)
+                self.final_df['START_MARK'] = self.final_df['START_MARK'].astype('Int64')
+                self.final_df['END_MARK'] = self.final_df['END_MARK'].astype('Int64')
+            elif ('ecosite' not in self.tbl) and (self.final_df[each_col].dtype!=np.float64) and (self.final_df[each_col].dtype!=np.int64):
+            #     # print(self.final_df[each_col],self.final_df[each_col].dtype)
+            #
+                self.final_df[each_col] = self.final_df[each_col].astype(object).apply(lambda i: i.strip() if pd.isnull(i)!=True else i)
 
+
+
+
+        # self.fixed = self.final_df[~self.final_df.duplicated()]
+
+        # self.final_df =self.final_df.replace(np.nan, '') ### need to change nulls ? maybe not
+        self.fixed = self.final_df.drop_duplicates(subset=['SURVEY','STATE', 'COUNTY', 'PSU', 'POINT'], keep='first')
+"""
+q's:
+- which fields should be used to find dups
+- try sending to postgres or access w nulls instead of empty spaces
+
+"""
 
 
 def df_send(selectdf, tablename, acc = None, pg=None):
@@ -224,11 +219,68 @@ def df_send(selectdf, tablename, acc = None, pg=None):
 """
 needs to be generalized into class/function
 """
-tname = 'pintercept'
+
+class join_machine:
+    """
+    still stores old instance data for some reason..
+    """
+    tname=None
+    w_dups = None
+    no_dups = None
+    def __init__(self,tablename):
+        joined = None
+        self.tname = tablename
+        full_list = []
+        try:
+            df1 =first[tname].copy(deep=True)
+            full_list.append(df1)
+        except Exception as e:
+            # print(e)
+            df1 = None
+        try:
+            df2 =second[tname].copy(deep=True)
+            full_list.append(df2)
+        except Exception as e:
+            # print(e)
+            df2 = None
+
+        try:
+            df3 = third[tname].copy(deep=True)
+            full_list.append(df3)
+        except Exception as e:
+            # print(e)
+            df3  = None
+
+        try:
+            df4 = fourth[tname].copy(deep=True)
+            full_list.append(df4)
+        except Exception as e:
+            # print(e)
+            df4 = None
+
+        try:
+            df5 = fifth[tname].copy(deep=True)
+            full_list.append(df5)
+        except Exception as e:
+            # print(e)
+            df5 = None
+        joined = appender(full_list,tablename=self.tname)
+        joined.a()
+        self.w_dups = joined.final_df
+        joined.fix()
+        self.no_dups = joined.fixed
+
+del(j)
+
+j = join_machine('ESFSG')
+j.w_dups
+j.no_dups
+
+tname = 'ecosite'
 df1=first[tname].copy(deep=True)
 df2=second[tname].copy(deep=True)
-df3 = third[tname].copy(deep=True)
 df4 = fourth[tname].copy(deep=True)
+df3 = third[tname].copy(deep=True)
 df5 = fifth[tname].copy(deep=True)
 
 df1.shape
@@ -237,14 +289,12 @@ df3.shape
 df4.shape
 df5.shape
 del(wow)
-
+wow
 wow = appender(df1,df2,df3,df4,df5,tablename=tname)
+wow = appender(df1, tablename= tname)
 
 wow.a()
-
-
 wow.fix()
-
 
 # wow.fixed.to_sql(name='concern', con=engine, index=False)
 drop_all(a=True)

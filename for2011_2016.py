@@ -108,16 +108,18 @@ class first_round:
                                 tempdf[field] = tempdf[field].map(lambda i: i*(-1))
                                 # print(field, t.list[field], tempdf[field].dtype, "filtered pt 3")
 
-                        less_fields = ['statenm','countynm']
-                        if os.path.splitext(item)[0] not in less_fields:
 
-                            dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
-                            dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
                         if 'COUNTY' in tempdf.columns:
                             tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
 
                         if 'STATE' in tempdf.columns:
                             tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+
+                        less_fields = ['statenm','countynm']
+                        if os.path.splitext(item)[0] not in less_fields:
+
+                            dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+                            dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
                         tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
                         self.temp_coords = tempdf.copy(deep=True)
                         self.dfs.update({'coordinates':tempdf})
@@ -145,13 +147,13 @@ class first_round:
                             if field in dot_list:
                                 tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
 
+                            ##### STRIP ANYWAY
+                            if tempdf[field].dtype==np.object:
+                                tempdf[field] = tempdf[field].apply(lambda i: i.strip() if type(i)!=float else i)
 
-                        # for all tables not in "less_fields" list, create two new fields
-                        less_fields = ['statenm','countynm']
-                        if os.path.splitext(item)[0] not in less_fields:
-                            # print(item)
-                            dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
-                            dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
+
+
+
 
                         # if table has field 'COUNTY', fill with leading zeroes
                         if 'COUNTY' in tempdf.columns:
@@ -159,6 +161,13 @@ class first_round:
                         # if table has field 'STATE', fill with leading zeroes
                         if 'STATE' in tempdf.columns:
                             tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+
+                        # for all tables not in "less_fields" list, create two new fields
+                        less_fields = ['statenm','countynm']
+                        if os.path.splitext(item)[0] not in less_fields:
+                            # print(item)
+                            dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+                            dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
                         # create simple dbkey field
                         tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
 
