@@ -467,6 +467,22 @@ class df_builder_for_2004:
         'Raw data dump' does not exist here, so self.realp is unnecessary
 
         """
+        """
+        vacuuming
+        """
+        self.fields_dict = {}
+        self.dfs = {}
+        self.dbkcount = 0
+        self.dbkeys = None
+        self.path = None
+        self.mainp = None
+        self.expl = None
+        self.df = None
+        self.temp_coords = None
+        self.tablelist = None
+        self.dbkey = None
+
+        """"""
         self.path = path
         self.mainp = os.path.dirname(os.path.dirname(path))
         # self.realp = os.path.join(path,'Raw data dump')
@@ -492,7 +508,7 @@ class df_builder_for_2004:
             if (file.find('Point Coordinates')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
                 header = header_fetch(self.path)
                 header.pull(file)
-                self.fields_dict.update({'POINTCOORDINATES':header.fields})
+                self.fields_dict.update({'pointcoordinates':header.fields})
 
             if (file.find('2004')!=-1) and(file.find('Dump Columns')!=-1) and (file.startswith('~$')==False) and (file.endswith('.xlsx')==True):
                 for table in self.tablelist:
@@ -513,7 +529,7 @@ class df_builder_for_2004:
             if (file.find('Coordinates')!=-1) and (file.endswith('.xlsx')==False):
                 for item in os.listdir(os.path.join(self.path,file)):
                     if item.find('pointcoordinates')!=-1:
-                        tempdf =pd.read_csv(os.path.join(self.path,file,item), sep='|', index_col=False, names=self.fields_dict['POINTCOORDINATES'])
+                        tempdf =pd.read_csv(os.path.join(self.path,file,item), sep='|', index_col=False, names=self.fields_dict['pointcoordinates'])
 
                         t = type_lookup(tempdf, os.path.splitext(item)[0], self.dbkey, self.path)
                         fix_longitudes = ['TARGET_LONGITUDE','FIELD_LONGITUDE']
@@ -525,27 +541,25 @@ class df_builder_for_2004:
                             if field in fix_longitudes:
                                 tempdf[field] = tempdf[field].map(lambda i: i*(-1))
 
-                        less_fields = ['statenm','countynm']
-                        if os.path.splitext(item)[0] not in less_fields:
 
-                            dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
-                            dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
                         if 'COUNTY' in tempdf.columns:
                             tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
 
                         if 'STATE' in tempdf.columns:
                             tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+
+                        less_fields = ['statenm','countynm']
+                        if os.path.splitext(item)[0] not in less_fields:
+
+                            dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
+                            dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
                         tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
                         self.temp_coords = tempdf.copy(deep=True)
                         self.dfs.update({'pointcoordinates':tempdf})
 
             if (file.find(findable_string)!=-1) and (file.endswith('.xlsx')==False):
-
                 for item in os.listdir(os.path.join(self.path, file)):
-                    # print(os.path.splitext(item)[0].upper(), self.tablelist)
                     if os.path.splitext(item)[0].upper() in self.tablelist:
-                        # print(item)
-
                         tempdf = pd.read_csv(os.path.join(self.path,file,item), sep='|', index_col=False,low_memory=False, names=self.fields_dict[os.path.splitext(item)[0].upper()])
 
                         # for all fields, if a field is numeric in lookup AND (not np.float or np.int), strip whitespace!
@@ -655,6 +669,19 @@ class df_builder_for_2009:
 
         'Raw data dump' does not exist here, so self.realp is unnecessary
 
+        """
+        self.fields_dict = {}
+        self.dfs = {}
+        self.dbkcount = 0
+        self.dbkeys = None
+        self.path = None
+        self.mainp = None
+        self.expl = None
+        self.df = None
+        self.temp_coords = None
+        self.tablelist = None
+        self.dbkey = None
+        """
         """
         self.path = path
         self.mainp = os.path.dirname(os.path.dirname(path))

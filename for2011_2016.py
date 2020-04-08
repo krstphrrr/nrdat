@@ -27,6 +27,7 @@ class first_round:
     fields_dict = {}
     dfs = {}
     dbkcount = 0
+    to_next = 0
 
     dbkeys = None
     path = None
@@ -36,6 +37,7 @@ class first_round:
     realp = None
     temp_coords =None
     tdf = None
+    full_coords_test = None
     _dbkey = {
         'RangeChange2004-2008':1,
         'RangeChange2009-2015':2,
@@ -53,6 +55,22 @@ class first_round:
     tablelist = []
 
     def __init__(self, path, dbkey):
+        """
+        vacuuming
+        """
+        self.fields_dict = {}
+        self.dfs = {}
+        self.dbkcount = 0
+        self.dbkeys = None
+        self.path = None
+        self.mainp = None
+        self.expl = None
+        self.df = None
+        self.temp_coords = None
+        self.tablelist = None
+        self.dbkey = None
+        self.full_coords_test = None
+
         self.path = path
         self.mainp = os.path.dirname(os.path.dirname(path))
         self.realp = os.path.join(path,'Raw data dump')
@@ -91,22 +109,18 @@ class first_round:
             if (file.find('Coordinates')!=-1) and (file.endswith('.xlsx')==False) and (file.endswith('.zip')==False):
                 for item in os.listdir(os.path.join(self.realp,file)):
                     if item.find('pointcoordinates')!=-1:
-                        tempdf =pd.read_csv(os.path.join(self.realp,file,item), sep='|', index_col=False, names=self.fields_dict['pointcoordinates'] )
-                        # self.tdf = tempdf
+                        # print(item, 'first')
+                        tempdf =pd.read_csv(os.path.join(self.realp,file,item), sep='|', index_col=False, names=self.fields_dict['pointcoordinates'])
 
                         t = type_lookup(tempdf, os.path.splitext(item)[0], self.dbkey, self.path)
                         fix_longitudes = ['TARGET_LONGITUDE','FIELD_LONGITUDE']
                         for field in tempdf.columns:
-                            # print(field,t.list[field],tempdf[field].dtype, "no filter")
                             if (t.list[field]=="numeric") and (tempdf[field].dtype!=np.float64) and (tempdf[field].dtype!=np.int64):
-                                # print(field, t.list[field], tempdf[field].dtype, "filtered")
                                 tempdf[field] = tempdf[field].apply(lambda i: i.strip())
                                 tempdf[field] = pd.to_numeric(tempdf[field])
-                                # print(field, t.list[field], tempdf[field].dtype, "filtered pt 2")
 
                             if field in fix_longitudes:
                                 tempdf[field] = tempdf[field].map(lambda i: i*(-1))
-                                # print(field, t.list[field], tempdf[field].dtype, "filtered pt 3")
 
 
                         if 'COUNTY' in tempdf.columns:
@@ -122,11 +136,13 @@ class first_round:
                             dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
                         tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
                         self.temp_coords = tempdf.copy(deep=True)
-                        self.dfs.update({'coordinates':tempdf})
-            # use range2011
-            if (file.find(f'{findable_string}')!=-1) and (file.endswith('.xlsx')==False) and ('PointCoordinates' not in file) and (file.endswith('.zip')==False):
+                        self.dfs.update({'pointcoordinates':tempdf})
+
+        for file in os.listdir(self.realp):
+            if ('PointCoordinates' not in file) and (file.find(f'{findable_string}')!=-1) and (file.endswith('.xlsx')==False) and (file.endswith('.zip')==False):
                 for item in os.listdir(os.path.join(self.realp, file)):
                     if os.path.splitext(item)[0].upper() in self.tablelist:
+                        # print(item, 'second')
                         tempdf = pd.read_csv(os.path.join(self.realp,file,item), sep='|', index_col=False,low_memory=False, names=self.fields_dict[os.path.splitext(item)[0].upper()])
 
                         # for all fields, if a field is numeric in lookup AND (not np.float or np.int), strip whitespace!
@@ -136,13 +152,14 @@ class first_round:
                         for field in tempdf.columns:
                             stay_in_varchar = ['STATE', 'COUNTY']
 
-                            t = type_lookup(tempdf, os.path.splitext(item)[0], 2, self.path)
+                            t = type_lookup(tempdf, os.path.splitext(item)[0], self.dbkey, self.path)
                             if (t.list[field]=="numeric") and (tempdf[field].dtype!=np.float64) and (tempdf[field].dtype!=np.int64):
                                 tempdf[field] = tempdf[field].apply(lambda i: i.strip())
 
                             if t.list[field]=="numeric" and field not in stay_in_varchar:
                                 tempdf[field] = pd.to_numeric(tempdf[field])
 
+                            # for fields with dots in them..
                             dot_list = ['HIT1','HIT2','HIT3', 'HIT4', 'HIT5', 'HIT6', 'NONSOIL']
                             if field in dot_list:
                                 tempdf[field] = tempdf[field].apply(lambda i: "" if ('.' in i) and (any([(j.isalpha()) or (j.isdigit()) for j in i])!=True) else i)
@@ -152,40 +169,31 @@ class first_round:
                                 tempdf[field] = tempdf[field].apply(lambda i: i.strip() if type(i)!=float else i)
 
 
-
-
-
-                        # if table has field 'COUNTY', fill with leading zeroes
-                        if 'COUNTY' in tempdf.columns:
-                            tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
-                        # if table has field 'STATE', fill with leading zeroes
-                        if 'STATE' in tempdf.columns:
-                            tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
-
                         # for all tables not in "less_fields" list, create two new fields
+
+                            # if table has field 'COUNTY', fill with leading zeroes
+                            if 'COUNTY' in tempdf.columns:
+                                tempdf['COUNTY'] = tempdf['COUNTY'].map(lambda x: f'{x:0>3}')
+                            # if table has field 'STATE', fill with leading zeroes
+                            if 'STATE' in tempdf.columns:
+                                tempdf['STATE'] = tempdf['STATE'].map(lambda x: f'{x:0>2}')
+                            # create simple dbkey field
+                            tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
+
                         less_fields = ['statenm','countynm']
                         if os.path.splitext(item)[0] not in less_fields:
                             # print(item)
                             dbkey_gen(tempdf, 'PrimaryKey', 'SURVEY', 'STATE', 'COUNTY','PSU','POINT')
                             dbkey_gen(tempdf, 'FIPSPSUPNT', 'STATE', 'COUNTY','PSU','POINT')
-                        # create simple dbkey field
-                        tempdf['DBKey'] = ''.join(['NRI_',f'{date.today().year}'])
 
                         if 'point' in item:
                             # adding landuse from points table to coords
-
                             point_slice = tempdf[['LANDUSE', 'PrimaryKey']].copy(deep=True)
-                            point_slice
                             coords_dup = pd.concat([self.temp_coords,point_slice], axis=1, join="inner")
                             coords_full = coords_dup.loc[:,~coords_dup.columns.duplicated()]
-
                             self.dfs.update({'pointcoordinates': coords_full})
-
-
                         self.dfs.update({f'{os.path.splitext(item)[0]}':tempdf})
 
-                    else:
-                        print(os.path.splitext(item)[0].upper())
                         ## if the tables are not in tablelist
 
 # for table in f.dfs.keys():
