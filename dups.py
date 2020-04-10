@@ -38,7 +38,7 @@ f = df_builder_for_2004(firstp,'RangeChange2004-2008')
 f.extract_fields('2004')
 f.append_fields('2004')
 
-f.dfs['pointcoordinates']
+# f.dfs['pointcoordinates']
 # f.dfs['point']
 # f.fields_dict['POINTCOORDINATES']
 import copy
@@ -69,22 +69,22 @@ t.extract_fields('2009')
 
  # file is called 2009-2016 NRI Range Data Dump Columns
 t.append_fields('2011')
-t.
-t.full_coords_test
-t.dfs['pointcoordinates']
+# t.
+# t.full_coords_test
+# t.dfs['pointcoordinates']
 third = copy.deepcopy(t.dfs)
-
-t.dfs['pointcoordinates']
-
-third = pd.concat([t.dfs['coordinates'],t.dfs['pointcoordinates']], axis=1, join="inner")
-third.iloc[:,-1]
-third.columns
-third.iloc[:,13]
-third.drop(index=[12], axis=1)
-third = third.iloc[:,0:13]
-third
-
-t.dfs['pointcoordinates']
+#
+# t.dfs['pointcoordinates']
+#
+# third = pd.concat([t.dfs['coordinates'],t.dfs['pointcoordinates']], axis=1, join="inner")
+# third.iloc[:,-1]
+# third.columns
+# third.iloc[:,13]
+# third.drop(index=[12], axis=1)
+# third = third.iloc[:,0:13]
+# third
+#
+# t.dfs['pointcoordinates']
 # t.dfs['concern']
 """
 2013
@@ -94,12 +94,12 @@ c = first_round(thirdp, 'range2011-2016')
 c.extract_fields('2009')
 c.append_fields('pasture2013')
 fourth = copy.deepcopy(c.dfs)
-c.dfs['point']
-c.dfs['coordinates']
-c.dfs['pointcoordinates']
+# c.dfs['point']
+# c.dfs['coordinates']
+# c.dfs['pointcoordinates']
 
-cuarto = pd.concat([c.dfs['coordinates'],c.dfs['pointcoordinates']], axis=1, join="inner")
-cuarto = cuarto.iloc[:,0:13]
+# cuarto = pd.concat([c.dfs['coordinates'],c.dfs['pointcoordinates']], axis=1, join="inner")
+# cuarto = cuarto.iloc[:,0:13]
 
 
 """
@@ -110,9 +110,9 @@ l = first_round(fourthp, 'rangepasture2017_2018')
 l.extract_fields('2018')
 l.append_fields('rangepasture2017')
 fifth = copy.deepcopy(l.dfs)
-l.dfs['point']
-l.dfs['coordinates']
-l.dfs['pointcoordinates']
+# l.dfs['point']
+# l.dfs['coordinates']
+# l.dfs['pointcoordinates']
 
 
 # l.dfs['concern']
@@ -319,37 +319,289 @@ class join_machine:
         joined.fix()
         self.no_dups = joined.fixed
 
-del(j)
 
-j = join_machine('ESFSG')
-j.w_dups
-j.no_dups
-acc_path = os.path.join(firstp, 'mdbs','ready.accdb')
 
-tname = 'concern'
+
+acc_path = os.path.join(firstp, 'mdbs','ready2.accdb')
+
+tname = 'pintercept'
 df1=first[tname].copy(deep=True)
 df2=second[tname].copy(deep=True)
 df3 = third[tname].copy(deep=True)
 df4 = fourth[tname].copy(deep=True)
 df5 = fifth[tname].copy(deep=True)
 
-pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
+pointc = pd.concat([df1,df3,df4,df5]).drop_duplicates()
+
+newcols = ['PrimaryKey','FIPSPSUPNT','DBKey','LANDUSE']
+[i for i in pointc.columns if i not in newcols]
+pth = r"C:\Users\kbonefont\Downloads\pointcoordinates.txt"
+newdf= pd.read_csv(pth)
+newdf = newdf.iloc[:,1:]
+newdf.SURVEY = newdf.SURVEY.astype("Int64")
+
+notin = []
+len(notin)
+newdf.PrimaryKey[0]
+len(pointc.PrimaryKey)
+for i in newdf.PrimaryKey:
+    if i not in [j for j in pointc.PrimaryKey]:
+        notin.append(i)
+'201730079060701R2' in pointc.PrimaryKey
+newdf.PrimaryKey[0] in[ i for i in pointc[(pointc.SURVEY==2017) & (pointc.STATE=='30')&(pointc.COUNTY=='079')]['PrimaryKey']]
+pointcoord = pd.concat([df1,df3,df4,df5]).drop_duplicates()
+pointcoord[pointcoord['PSU']=="060701R"]
+missing = newdf[newdf['PrimaryKey'].isin(notin)]
+pointc.POINT
+missing = missing[missing.SURVEY.notnull()].copy(deep=True)
+missing['COUNTY'] = missing['COUNTY'].astype("Int64").apply(lambda x: f'{x:0>3}')
+missing['STATE'] = missing['STATE'].astype("Int64").apply(lambda x: f'{x:0>2}')
+missing['POINT'] = missing['POINT'].astype("Int64")
+missing['DBKey'] = "NRI_2020"
+# joining landuse
+missing.SURVEY.unique()
+point[['PrimaryKey','LANDUSE']]
+point = pd.concat([df1,df2,df3,df4,df5], ignore_index=True).drop_duplicates().copy(deep=True)
+point_slice = point[['PrimaryKey','LANDUSE']]
+missing = missing.reset_index()
+full_temp = pd.concat([missing,point_slice], axis=1, join="inner")
+
+
+full_temp.columns
+full_temp = full_temp.loc[:,~full_temp.columns.duplicated()]
+full_temp = full_temp.drop(columns=['index'])
+df_send(pd.concat([full_temp, pointc]), 'pointcoordinates', acc=True, pg=False)
+
+
 #concern
 concern = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates().copy(deep=True)
 len(concern.columns)
-concern.columns[5:27]
+concern.columns[7:27]
 for field in concern.columns[5:27]:
     concern[field] = concern[field].apply(lambda x: 1 if x=='Y' else (0 if x=='N' else x) )
 df_send(concern,'concern', acc=True, pg=False)
 
+# disturbance
 
-poinc = pd.concat([df1,df3,df4,df5]).drop_duplicates().copy(deep=True)
+disturb = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates().copy(deep=True)
+df_send(disturb, 'concern', acc=True, pg=False)
 
-pks = concern['PrimaryKey']
-notin = []
-for i in concern['PSU'].unique():
-    if i in poinc['PrimaryKey']:
-        notin.append(i)
+# ecosite - only in df1
+
+ecosite = df1.drop_duplicates().copy(deep=True)
+df_send(ecosite,'ecosite', acc=True, pg=False)
+mask = ecosite['ECO_SITE_STATE'].apply(lambda x: True if x.startswith('X')==True else False)
+ecosite[~mask]
+
+# esfsg df2-df5
+
+esfsg = pd.concat([df2,df3,df4,df5]).drop_duplicates().copy(deep=True)
+mask = esfsg['ESFSG_STATE'].apply(lambda x: True if x.startswith('X')==True else False)
+esfsg[~mask].drop_duplicates()
+df_send(esfsg, 'esfsg', acc=True, pg=False)
+
+# gintercept
+
+
+gint = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
+df_send(gint, 'gintercept', acc=True, pg=False)
+
+# gps
+gps = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
+df_send(gps, 'gps', acc=True,pg=False)
+
+#pastureheights
+
+pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
+height = pd.concat([df2,df3,df4]).drop_duplicates().copy(deep=True)
+height2 = pd.concat([height,df5],ignore_index=True)
+# dividing sets to place the columns correctly
+height_1 = height2[['SURVEY', 'STATE', 'COUNTY', 'PSU', 'POINT', 'TRANSECT', 'DISTANCE','HPLANT','HEIGHT']]
+height_2 = height2[['WPLANT', 'WHEIGHT']]
+height_tail = height2[['PrimaryKey', 'FIPSPSUPNT', 'DBKey']]
+
+height['HEIGHT'].unique()
+# converting inches to fractions of feet - still need to take care of  plus signs
+h2 = height_2.copy(deep=True)
+# pseudo: round the converted value to three decimal points if its not a null, has a digit, there's no plus sign and  has 'in'
+# else just round nonconverted value to three decimal points if its not null has a digit, theres no plus  but has 'ft' in value
+h2['preheight2']=height2['WHEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if pd.isnull(x)!=True and
+                                    (any([y.isdigit() for y in x])==True) and
+                                    (any(['+' in z for z in x])!=True) and
+                                    ('in' in x.split()) else (round(float(x.split()[0]),3) if pd.isnull(x)!=True and
+                                        (any([y.isdigit() for y in x])==True) and
+                                        (any(['+' in z for z in x])!=True) and
+                                        ('ft' in x.split()) else x) )
+
+h2['preunit2'] = height2['WHEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
+                                           ('in' in x.split()) and
+                                           (len(x.split())<=2) else (x.split()[1] if ('ft' in x) and (pd.isnull(x)!=True) else x ) )
+# h2['preheight2'].apply(lambda x: )
+# trying to fix the plus signs
+str = '60+ ft'
+float(str.split()[0].replace('+',''))
+# height[['+' in x for x in height['WHEIGHT']]]
+# this column will have both floats from previous conversion, remnant strings with '+' signs, and null values
+# target all the nulls with isinstance() instead of just nulls with pd.isnull()
+h2['preheight2']=h2['preheight2'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
+                                        ('+' in x.split()) else x)
+
+# fixing the 'None' value in the column 'WPLANT'
+# h2['WPLANT'] = h2['WPLANT'].apply(lambda x: '' if ('None' in x) else x)
+
+
+# height_1['HEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if (any([y.isdigit() for y in x])==True) and (any(['+' in z for z in x])!=True) else x )
+# height2['HEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
+#                                            ('in' in x.split()) and
+#                                            (len(x.split())<=2) else x )
+
+h1=height_1.copy(deep=True)
+
+h1['preheight']=height2['HEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if pd.isnull(x)!=True and
+                                    (any([y.isdigit() for y in x])==True) and
+                                    (any(['+' in z for z in x])!=True) and
+                                    ('in' in x.split()) else (round(float(x.split()[0]),3) if pd.isnull(x)!=True and
+                                        (any([y.isdigit() for y in x])==True) and
+                                        (any(['+' in z for z in x])!=True) and
+                                        ('ft' in x.split()) else x) )
+h1['preunit'] = height2['HEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
+                                           ('in' in x.split()) and
+                                           (len(x.split())<=2) else (x.split()[1] if ('ft' in x) and  (pd.isnull(x)!=True) else x ) )
+
+h1['preheight']=h1['preheight'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
+                                    ('+' in x.split()) else x)
+
+# h1['HPLANT'] = h1['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
+pastureheight['HPLANT'] = pastureheight['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
+# both preunits have 0's
+# h1[['ft' in x for x in h1['HEIGHT']]]
+# h1[['0' in x for x in h1['preunit']]]
+# h2[h2['preheight2']=='0']
+
+h1['preunit']=h1['preunit'].apply(lambda x: '' if (x=='0') else x)
+h2['preunit2']=h2['preunit2'].apply(lambda x: '' if (x=='0') else x)
+# h1[h1['preheight']=='0']
+pastureheight['WHEIGHT_UNIT'] = pastureheight['WHEIGHT_UNIT'].apply(lambda x: 'ft')
+pastureheight['HEIGHT_UNIT'] = pastureheight['HEIGHT_UNIT'].apply(lambda x: 'ft')
+h1=h1.rename(columns={'HEIGHT':'HEIGHT_OLD'})
+h1=h1.rename(columns={'preheight':'HEIGHT', 'preunit':'HEIGHT_UNIT'})
+
+h2=h2.rename(columns={'WHEIGHT':'WHEIGHT_OLD'})
+h2=h2.rename(columns={'preheight2':'WHEIGHT', 'preunit2':'WHEIGHT_UNIT'})
+
+pastureheight= pd.concat([h1,h2,height_tail], axis=1).drop_duplicates()
+pastureheight
+df_send(pastureheight, 'pastureheight', acc=True, pg=False )
+# plant height
+pheight = df1.copy(deep=True)
+ph1=pheight.iloc[:,0:33]
+ph2=pheight.iloc[:,33:]
+
+ph1['HEIGHT_UNIT'] = 'ft'
+df_send(pd.concat([ph1,ph2], axis=1), 'plantheight_f', acc=True, pg=False)
+
+
+
+# plant census
+plantcensus = pd.concat([df2,df3,df4,df5]).drop_duplicates()
+df_send(plantcensus, 'plantcensus', acc=True, pg=False)
+
+#points
+
+point = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
+df_send(point,'point',acc=True, pg=False)
+
+
+# PointCoordinates
+df2
+pointc= pd.concat([df1,df3,df4,df5]).drop_duplicates()
+
+df_send(pointc, 'pointcoordinates', acc=True, pg=False)
+
+
+#ptnote
+
+ptnote = pd.concat([df1,df2,df3, df4, df5]).drop_duplicates()
+df_send(ptnote, 'ptnote', acc=True, pg=False)
+
+# rangehealth
+rangehealth = pd.concat([df1,df2,df3,df5]).drop_duplicates()
+
+df_send(rangehealth, 'rangehealth', acc=True, pg=False)
+
+# soildisag
+
+soildisag = pd.concat([df1, df2, df3, df4, df5]).drop_duplicates()
+for field in soildisag.iloc[:,5:23]:
+    soildisag[field] = soildisag[field].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x)
+soildisag['VEG14'].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x).unique()
+df_send(soildisag, 'soildisag', acc=True, pg=False)
+
+#soilhorizon
+
+pd.concat([df2,df3,df4,df5]).drop_duplicates()
+
+soil = pd.concat([df2,df3,df4,df5]).drop_duplicates()
+soil1['DEPTH_UNIT'] = soil['DEPTH'].apply(lambda x: 'in' if pd.isnull(x)!=True else x)
+soil1 = soil.iloc[:,:7]
+soil2 = soil.iloc[:,7:]
+soilf = pd.concat([soil1,soil2], axis=1)
+
+soilf['HORIZON_TEXTURE'] = soilf['HORIZON_TEXTURE'].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x)
+soilf['TEXTURE_MODIFIER'] = soilf['TEXTURE_MODIFIER'].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x)
+soilf['EFFERVESCENCE_CLASS'] = soilf['EFFERVESCENCE_CLASS'].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x)
+
+len(soilf[soilf['EFFERVESCENCE_CLASS']==''])
+df_send(soilf, 'soilhorizon', acc=True, pg=False)
+
+# statenm
+statenm = pd.concat([df1,df2,df3,df4,df5], ignore_index=True).drop_duplicates()
+df_send(statenm, 'statenm', acc=True, pg=False)
+
+#pintercept
+
+pint = pd.concat([df1,df2,df3,df4,df5],ignore_index=True).drop_duplicates().copy(deep=True)
+del(df5)
+pint.columns
+
+
+pint.iloc[:,7:14]
+
+pint['HIT1'] = pint['HIT1'].apply(lambda x: np.nan if ('None' in x ) else x)
+pint['HIT2'] = pint['HIT2'].apply(lambda x: np.nan if ('None' in x ) else x)
+pint['HIT3'] = pint['HIT3'].apply(lambda x: np.nan if ('None' in x ) else x)
+pint['HIT4'] = pint['HIT4'].apply(lambda x: np.nan if ('None' in x ) else x)
+pint['HIT5'] = pint['HIT5'].apply(lambda x: np.nan if ('None' in x ) else x)
+pint['HIT6'] = pint['HIT6'].apply(lambda x: np.nan if ('None' in x ) else x)
+pint['BASAL'] = pint['BASAL'].apply(lambda x: np.nan if ('None' in x ) else x)
+acc_path
+pint.shape[0]
+df_send(pint.iloc[500000:1000000,:], 'pintercept_1m', acc=True, pg=False)
+
+df_send(pint.iloc[:500000,:], 'pintercept_500k', acc=True, pg=False)
+df_send(pint.iloc[1000000:1500000,:], 'pintercept_15m', acc=True, pg=False)
+df_send(pint.iloc[1500000:2000000,:], 'pintercept_2m', acc=True, pg=False)
+df_send(pint.iloc[2000000:2500000,:], 'pintercept_25m', acc=True, pg=False)
+df_send(pint.iloc[2500000:3000000,:], 'pintercept_3m', acc=True, pg=False)
+df_send(pint.iloc[3000000:,:], 'pintercept_35m', acc=True, pg=False)
+
+#practice
+mask = pd.isnull(practice.P528A)!=True
+practice['P528'][mask] = practice['P528A'][mask]
+practice.drop(columns=['P528A'])
+practice.columns[0:5]
+practice.columns[5:33]
+save = practice[practice.columns[33:36]]
+practice.columns[36:]
+change = pd.concat([practice[practice.columns[5:33]],practice[practice.columns[36:]]], axis=1)
+
+for field in change.columns:
+    change[field] = change[field].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x)
+practice['P512'].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x).unique()
+
+practice_f = pd.concat([practice[practice.columns[0:5]],change, save], axis=1)
+# still missing 4 rows
+df_send(practice_f, 'practice', acc=True, pg=False)
 
  #soilhorizon
 
@@ -375,246 +627,8 @@ df_send(soilf, 'soilhorizon', acc=True, pg=False)
 
 
 
-os.listdir(firstp)
-from index import header_fetch
-p1 = r"C:\Users\kbonefont\Desktop\NRI\extracted\2004-2015 Rangeland Change Database with Weights\RangeChange2004-2008\soildisag.txt"
-h1 = header_fetch(firstp)
-h1.files
-h1.pull(r"2004-2008 NRI Range Change Data Dump Columns.xlsx", 'SOILDISAG')
-h1.fields
-d1 = pd.read_csv(p1, sep='|', names=h1.fields)
 
-p2 = r"C:\Users\kbonefont\Desktop\NRI\extracted\2004-2015 Rangeland Change Database with Weights\RangeChange2009-2015\soildisag.txt"
 
-d2 = pd.read_csv(p2, sep='|', names=h1.fields)
-
-p3 = r"C:\Users\kbonefont\Desktop\NRI\extracted\2011-2016 NRI Rangeland Database\Raw data dump\range2011-2016\soildisag.txt"
-
-d3 = pd.read_csv(p3, sep='|', names=h1.fields)
-
-p4 = r"C:\Users\kbonefont\Desktop\NRI\extracted\2013-2016 NRI Pasture Database\Raw data dump\pasture2013-2016\soildisag.txt"
-
-d4 = pd.read_csv(p4, sep='|', names=h1.fields)
-
-p5 = r"C:\Users\kbonefont\Desktop\NRI\extracted\2017-2018 Range and Pasture\Raw data dump\rangepasture2017_2018\soildisag.txt"
-
-d5 = pd.read_csv(p5, sep='|', names=h1.fields)
-pd.concat([d1,d2,d3,d4,d5]).columns
-
-
-pd.concat([d1,d2,d3,d4,d5]).drop_duplicates(subset=['SURVEY','STATE','COUNTY','PSU','POINT'])
-
-
-
-
-
-
-
-
-
-
-
-# production
-
-pd.concat([df1,df2,df3,df5]).drop_duplicates()
-df_send(pd.concat([df1,df2,df3,df5]).drop_duplicates(), 'production', acc=True, pg=False)
-
-# PTNOTE
-pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
-df_send(pd.concat([df1,df2,df3,df4,df5]).drop_duplicates(),'soildisag',acc=True, pg=False)
-
-# rangehealth
-pd.concat([df1,df2,df3,df5]).drop_duplicates()
-df_send(pd.concat([df1,df2,df3,df5]).drop_duplicates(),'rangehealth',acc=True, pg=False)
-
-df1['SURVEY'].unique()
-df2.SURVEY.unique()
-df3.SURVEY.unique()
-df4.SURVEY.unique()
-df5.SURVEY.unique()
-practice=pd.concat([df1,df2,df3,df4,df5], ignore_index=True).drop_duplicates(subset=['PrimaryKey'])
-pd.concat([df1,pd.concat([df2,df3,df4]).drop_duplicates(), df5])
-
-practice.P528A[0]
-
-## practice shapeup,
-mask = pd.isnull(practice.P528A)!=True
-practice['P528'][mask] = practice['P528A'][mask]
-practice.drop(columns=['P528A'])
-# still missing 4 rows
-df_send(practice, 'practice', acc=True, pg=False)
-# production
-
-
-
-
-# first check if years overlap
-df1
-df1.SURVEY.unique()
-df2.SURVEY.unique()
-df3.SURVEY.unique()
-df4.SURVEY.unique()
-fourteen = pd.concat([df2,df3]).drop_duplicates(subset=[i for i in pklist if i not in nolist])
-fifty = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
-gint=pd.concat([df2,df3,df4]).drop_duplicates()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-pd.concat([df1,df3,df4,df5]).drop_duplicates()
-pd.concat([df2,df3]).drop_duplicates()
-plantcensus = pd.concat([pd.concat([df2,df3]).drop_duplicates(),df4,df5]).drop_duplicates()
-df_send(df1, 'plantheight', acc=True, pg=False)
-# dealing with pastureheights: removing duplicates from year ranges that may overlap
-height = pd.concat([df2,df3,df4]).drop_duplicates()
-height2 = pd.concat([height,df5],ignore_index=True)
-# dividing sets to place the columns correctly
-height_1 = height2[['SURVEY', 'STATE', 'COUNTY', 'PSU', 'POINT', 'TRANSECT', 'DISTANCE','HPLANT','HEIGHT']]
-height_2 = height2[['WPLANT', 'WHEIGHT']]
-height_tail = height2[['PrimaryKey', 'FIPSPSUPNT', 'DBKey']]
-
-height['WHEIGHT'].unique()
-# converting inches to fractions of feet - still need to take care of  plus signs
-h2 = height_2.copy(deep=True)
-# pseudo: round the converted value to three decimal points if its not a null, has a digit, there's no plus sign and  has 'in'
-# else just round nonconverted value to three decimal points if its not null has a digit, theres no plus  but has 'ft' in value
-h2['preheight2']=height2['WHEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if pd.isnull(x)!=True and
-                                    (any([y.isdigit() for y in x])==True) and
-                                    (any(['+' in z for z in x])!=True) and
-                                    ('in' in x.split()) else (round(float(x.split()[0]),3) if pd.isnull(x)!=True and
-                                        (any([y.isdigit() for y in x])==True) and
-                                        (any(['+' in z for z in x])!=True) and
-                                        ('ft' in x.split()) else x) )
-# h2['preheight2'].unique()
-h2['preunit2'] = height2['WHEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
-                                           ('in' in x.split()) and
-                                           (len(x.split())<=2) else (x.split()[1] if ('ft' in x) and (pd.isnull(x)!=True) else x ) )
-# trying to fix the plus signs
-str = '60+ ft'
-float(str.split()[0].replace('+',''))
-# height[['+' in x for x in height['WHEIGHT']]]
-# this column will have both floats from previous conversion, remnant strings with '+' signs, and null values
-# target all the nulls with isinstance() instead of just nulls with pd.isnull()
-h2['preheight2']=h2['preheight2'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
-                                        ('+' in x.split()) else x)
-
-# fixing the 'None' value in the column 'WPLANT'
-h2['WPLANT'] = h2['WPLANT'].apply(lambda x: '' if ('None' in x) else x)
-
-
-# height_1['HEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if (any([y.isdigit() for y in x])==True) and (any(['+' in z for z in x])!=True) else x )
-# height2['HEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
-#                                            ('in' in x.split()) and
-#                                            (len(x.split())<=2) else x )
-
-h1=height_1.copy(deep=True)
-
-h1['preheight']=height2['HEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if pd.isnull(x)!=True and
-                                    (any([y.isdigit() for y in x])==True) and
-                                    (any(['+' in z for z in x])!=True) and
-                                    ('in' in x.split()) else (round(float(x.split()[0]),3) if pd.isnull(x)!=True and
-                                        (any([y.isdigit() for y in x])==True) and
-                                        (any(['+' in z for z in x])!=True) and
-                                        ('ft' in x.split()) else x) )
-h1['preunit'] = height2['HEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
-                                           ('in' in x.split()) and
-                                           (len(x.split())<=2) else (x.split()[1] if ('ft' in x) and  (pd.isnull(x)!=True) else x ) )
-
-h1['preheight']=h1['preheight'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
-                                    ('+' in x.split()) else x)
-
-h1['HPLANT'] = h1['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
-pastureheight['HPLANT'] = pastureheight['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
-# both preunits have 0's
-# h1[['ft' in x for x in h1['HEIGHT']]]
-# h1[['0' in x for x in h1['preunit']]]
-# h2[h2['preheight2']=='0']
-h1['preunit']=h1['preunit'].apply(lambda x: '' if (x=='0') else x)
-h2['preunit2']=h2['preunit2'].apply(lambda x: '' if (x=='0') else x)
-# h1[h1['preheight']=='0']
-
-h1=h1.rename(columns={'HEIGHT':'HEIGHT_OLD'})
-h1=h1.rename(columns={'preheight':'HEIGHT', 'preunit':'HEIGHT_UNIT'})
-
-h2=h2.rename(columns={'WHEIGHT':'WHEIGHT_OLD'})
-h2=h2.rename(columns={'preheight2':'WHEIGHT', 'preunit2':'WHEIGHT_UNIT'})
-
-pastureheight= pd.concat([h1,h2,height_tail], axis=1)
-# pasture heights = done
-
-pheight = df1.copy(deep=True)
-ph1=pheight.iloc[:,0:33]
-ph2=pheight.iloc[:,33:]
-
-ph1['HEIGHT_UNIT'] = 'ft'
-df_send(pd.concat([ph1,ph2], axis=1), 'plantheight_f', acc=True, pg=False)
-
-
-pheight.columns
-
-
-
-
-height2['HEIGHT_UNIT']=height2['HEIGHT'].apply(lambda x: x.split(' ')[1] if (pd.isnull(x)!=True) and len(x.split(' '))==2 else x).unique()
-height2['HEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if pd.isnull(x)!=True and (any([y.isdigit() for y in x])==True) and (any(['+' in z for z in x])!=True) else x )
-
-
-
-
-height2['HEIGHT_UNIT'].unique()
-
-f=height2['HEIGHT'].apply(lambda x: "{0},{1}".format(x.split(' ')[0],x.split(' ')[1] ) if (pd.isnull(x)!=True) and len(x.split(' '))==2 else x)
-f.unique()
-pd.isnull(height2['HEIGHT'][0])
-['+' in i for i in str2]
-from decimal import *
-getcontext().prec = 4
-
-(Decimal(str.split()[0])*Decimal(0.08333333333) )
-str.split()[0]
-any([i.isdigit() for i in str])
-
-float(str.split()[0])
-height.columns
-
-
-
-
-
-
-
-
-
-
-
-
-df_send(pastureheight, 'pastureheight', acc=True, pg=False)
-
-fifty.SURVEY.unique()
-df4.SURVEY.unique()
-
-df5.SURVEY.unique()
-df1.shape
-df2.shape
-df3.shape
-df4.shape
-df5.shape
-del(wow)
 wow
 wow = appender(df1, fourteen,df4,df5,tablename=tname)
 wow = appender(df1, tablename= tname)
@@ -649,3 +663,4 @@ wow.fixed
 drop_all(a=True)
 df_send(wow.fixed, 'concern', acc=True, pg=False)
 pd.read_csv()
+.
