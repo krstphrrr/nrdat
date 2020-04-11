@@ -223,6 +223,8 @@ def df_send(selectdf, tablename, acc = None, pg=None):
                         onthefly.update({"PrimaryKey":sa_a.ShortText(17)})
                     if 'FIPSPSUPNT' not in temptypes:
                         onthefly.update({"FIPSPSUPNT":sa_a.ShortText(13)})
+                    if 'PastureRegion' not in temptypes:
+                        onthefly.update({"PastureRegion":sa_a.ShortText(15)})
                     if key not in only_once:
                         only_once.add(key)
 
@@ -322,14 +324,29 @@ class join_machine:
 
 
 
-acc_path = os.path.join(firstp, 'mdbs','ready2.accdb')
-
-tname = 'pintercept'
+acc_path = os.path.join(firstp, 'mdbs','ready.accdb')
+fourth
+tname = 'pastureheights'
 df1=first[tname].copy(deep=True)
 df2=second[tname].copy(deep=True)
 df3 = third[tname].copy(deep=True)
 df4 = fourth[tname].copy(deep=True)
 df5 = fifth[tname].copy(deep=True)
+# new revisions
+# disturbance 0 & 1's
+disturbance = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates()
+
+addins = ['PrimaryKey','FIPSPSUPNT','DBKey']
+disturbance['TRANSPORTED_FILL'].astype("Int")
+disturbance['TRANSPORTED_FILL'].apply(lambda x: 1 if (x=='Y') else (0 if x=='N' else x) ).astype('Int64').unique()
+
+for field in disturbance[[col for col in disturbance.columns if col not in addins]].columns[6:]:
+    disturbance[field] = disturbance[field].apply(lambda x: 1 if (x=='Y') else (0 if x=='N' else x) ).astype('Int64')
+disturbance['PrimaryKey']
+df_send(disturbance, 'disturbance_rev2', acc=True, pg=False)
+
+
+
 
 pointc = pd.concat([df1,df3,df4,df5]).drop_duplicates()
 
@@ -436,6 +453,8 @@ h2['preheight2']=height2['WHEIGHT'].apply(lambda x: round((float(x.split()[0])*0
 h2['preunit2'] = height2['WHEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
                                            ('in' in x.split()) and
                                            (len(x.split())<=2) else (x.split()[1] if ('ft' in x) and (pd.isnull(x)!=True) else x ) )
+
+
 # h2['preheight2'].apply(lambda x: )
 # trying to fix the plus signs
 str = '60+ ft'
@@ -443,17 +462,15 @@ float(str.split()[0].replace('+',''))
 # height[['+' in x for x in height['WHEIGHT']]]
 # this column will have both floats from previous conversion, remnant strings with '+' signs, and null values
 # target all the nulls with isinstance() instead of just nulls with pd.isnull()
-h2['preheight2']=h2['preheight2'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
-                                        ('+' in x.split()) else x)
+# h2['preheight2']=h2['preheight2'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
+#                                         ('+' in x.split()) else x)[h2['WHEIGHT']=='61+ ft']
+h2['preheight2']=h2['preheight2'].apply(lambda x: x.split()[1].replace('ft',x.split()[0]) if ((isinstance(x,float)!=True)) and (len(x.split())>1) else x)
 
-# fixing the 'None' value in the column 'WPLANT'
-# h2['WPLANT'] = h2['WPLANT'].apply(lambda x: '' if ('None' in x) else x)
+h2['preheight2']=h2['preheight2'].apply(lambda x: x.replace('+','') if (isinstance(x,float)!=True) and ('+' in x) else x)
 
+h2['preheight2']=h2['preheight2'].apply(lambda x: np.nan if (isinstance(x,float)!=True) and ('' in x) and ('0' not in x) and ('61' not in x) else x)
 
-# height_1['HEIGHT'].apply(lambda x: round((float(x.split()[0])*0.083333),3) if (any([y.isdigit() for y in x])==True) and (any(['+' in z for z in x])!=True) else x )
-# height2['HEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for y in x])==True) and
-#                                            ('in' in x.split()) and
-#                                            (len(x.split())<=2) else x )
+h2['preheight2']= h2['preheight2'].apply(lambda x: float(x) if (pd.isnull(x)!=True) and (isinstance(x,str)==True) else x )
 
 h1=height_1.copy(deep=True)
 
@@ -470,19 +487,22 @@ h1['preunit'] = height2['HEIGHT'].apply(lambda x: 'ft' if (any([y.isalpha() for 
 
 h1['preheight']=h1['preheight'].apply(lambda x: float(x.split()[0].replace('+','')) if (isinstance(x,float)!=True) and
                                     ('+' in x.split()) else x)
+h1['preheight']=h1['preheight'].apply(lambda x: x.split()[1].replace('ft',x.split()[0]) if ((isinstance(x,float)!=True)) and (len(x.split())>1) else x)
 
-# h1['HPLANT'] = h1['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
-pastureheight['HPLANT'] = pastureheight['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
-# both preunits have 0's
-# h1[['ft' in x for x in h1['HEIGHT']]]
-# h1[['0' in x for x in h1['preunit']]]
-# h2[h2['preheight2']=='0']
+h1['preheight']=h1['preheight'].apply(lambda x: x.replace('+','') if (isinstance(x,float)!=True) and ('+' in x) else x)
+
+h1['preheight']=h1['preheight'].apply(lambda x: np.nan if (isinstance(x,float)!=True) and ('' in x) and ('0' not in x) and ('61' not in x) else x)
+
+h1['preheight']= h1['preheight'].apply(lambda x: float(x) if (pd.isnull(x)!=True) and (isinstance(x,str)==True) else x )
+
+
 
 h1['preunit']=h1['preunit'].apply(lambda x: '' if (x=='0') else x)
 h2['preunit2']=h2['preunit2'].apply(lambda x: '' if (x=='0') else x)
 # h1[h1['preheight']=='0']
-pastureheight['WHEIGHT_UNIT'] = pastureheight['WHEIGHT_UNIT'].apply(lambda x: 'ft')
-pastureheight['HEIGHT_UNIT'] = pastureheight['HEIGHT_UNIT'].apply(lambda x: 'ft')
+
+pastureheight['HPLANT'] = pastureheight['HPLANT'].apply(lambda x: '' if ('None' in x) else x)
+
 h1=h1.rename(columns={'HEIGHT':'HEIGHT_OLD'})
 h1=h1.rename(columns={'preheight':'HEIGHT', 'preunit':'HEIGHT_UNIT'})
 
@@ -490,8 +510,11 @@ h2=h2.rename(columns={'WHEIGHT':'WHEIGHT_OLD'})
 h2=h2.rename(columns={'preheight2':'WHEIGHT', 'preunit2':'WHEIGHT_UNIT'})
 
 pastureheight= pd.concat([h1,h2,height_tail], axis=1).drop_duplicates()
-pastureheight
-df_send(pastureheight, 'pastureheight', acc=True, pg=False )
+pastureheight= pastureheight.drop(columns=['HEIGHT_OLD','WHEIGHT_OLD'])
+pastureheight['WHEIGHT_UNIT'] = 'ft'
+pastureheight['HEIGHT_UNIT'] = 'ft'
+df_send(pastureheight, 'pastureheight_rev2', acc=True, pg=False )
+
 # plant height
 pheight = df1.copy(deep=True)
 ph1=pheight.iloc[:,0:33]
@@ -555,8 +578,32 @@ len(soilf[soilf['EFFERVESCENCE_CLASS']==''])
 df_send(soilf, 'soilhorizon', acc=True, pg=False)
 
 # statenm
-statenm = pd.concat([df1,df2,df3,df4,df5], ignore_index=True).drop_duplicates()
-df_send(statenm, 'statenm', acc=True, pg=False)
+
+
+statenm = pd.concat([df1,df2,df3,df4,df5], ignore_index=True).drop_duplicates().copy(deep=True)
+midwest = ['IL', 'IN','IA','MI','MN','MO','OH','WI']
+northeast = ['CT', 'DE', 'ME', 'MD', 'MA', 'NH', 'NJ', 'NY', 'PA', 'RI', 'VT', 'WV']
+nplains = ['CO','KS', 'MT', 'NE', 'ND','SD','WY']
+scentral = ['AR','LA','OK','TX']
+seast = ['AL','FL','GA','KY', 'MS','NC','SC','TN','VA']
+west = ['AZ', 'CA', 'ID', 'NV', 'NM', 'OR','UT','WA']
+def chooser(state):
+    if state in midwest:
+        return 'Midwest'
+    elif state in northeast:
+        return 'North East'
+    elif state in nplains:
+        return len('Northern Plains')
+    elif state in scentral:
+        return 'South Central'
+    elif state in seast:
+        return 'South East'
+    elif state in west:
+        return 'West'
+chooser('IL')
+statenm['PastureRegion'] = '0'
+statenm['PastureRegion'] = statenm['STABBR'].apply(lambda x: chooser(x))
+df_send(statenm, 'statenm_rev2', acc=True, pg=False)
 
 #pintercept
 
@@ -586,22 +633,31 @@ df_send(pint.iloc[2500000:3000000,:], 'pintercept_3m', acc=True, pg=False)
 df_send(pint.iloc[3000000:,:], 'pintercept_35m', acc=True, pg=False)
 
 #practice
+practice = pd.concat([df1,df2,df3,df4,df5]).drop_duplicates().copy(deep=True)
 mask = pd.isnull(practice.P528A)!=True
 practice['P528'][mask] = practice['P528A'][mask]
-practice.drop(columns=['P528A'])
-practice.columns[0:5]
-practice.columns[5:33]
-save = practice[practice.columns[33:36]]
-practice.columns[36:]
-change = pd.concat([practice[practice.columns[5:33]],practice[practice.columns[36:]]], axis=1)
+practice = practice.drop(columns=['P528A'])
 
-for field in change.columns:
-    change[field] = change[field].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x)
-practice['P512'].apply(lambda x: np.nan if (isinstance(x, float)!=True) and (any([i.isalpha() for i in x])!=True) else x).unique()
+mask2 = pd.isnull(practice.N528A)!=True
+practice['N528'][mask2] = practice['N528A'][mask2]
+practice = practice.drop(columns=['N528A'])
 
-practice_f = pd.concat([practice[practice.columns[0:5]],change, save], axis=1)
+for field in practice.columns[5:31]:
+    practice[field] = practice[field].apply(lambda x: 1 if x=='Y' else (0 if x=='N' else x) )
+
+
+addins = ['PrimaryKey','FIPSPSUPNT','DBKey']
+for field in [i for i in practice.columns[5:] if i not in addins ]:
+    practice[field] = practice[field].apply(lambda x: np.nan if (isinstance(x,float)!=True) and x!='N' and x!='Y'  else x)
+for field in [i for i in practice.columns[5:] if i not in addins ]:
+    practice[field] = practice[field].apply(lambda x: 1 if x=='Y' else (0 if x=='N' else x) )
+for field in [i for i in practice.columns[5:] if i not in addins ]:
+    practice[field] = practice[field].astype("Int64")
+
+
+
 # still missing 4 rows
-df_send(practice_f, 'practice', acc=True, pg=False)
+df_send(practice, 'practice_rev2', acc=True, pg=False)
 
  #soilhorizon
 
@@ -663,4 +719,4 @@ wow.fixed
 drop_all(a=True)
 df_send(wow.fixed, 'concern', acc=True, pg=False)
 pd.read_csv()
-.
+.t
